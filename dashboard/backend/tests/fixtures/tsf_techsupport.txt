@@ -1,0 +1,60 @@
+> show clock
+
+Wed Jan  1 00:00:00 UTC 2026
+
+
+> show system info
+
+hostname: tsf-test-fw
+ip-address: 10.9.9.9
+model: PA-VM
+serial: 999900001111
+sw-version: 11.1.0
+app-version: 1000-1000
+av-version: 1000-1000
+wildfire-version: 1000-1000
+threat-version: 1000-1000
+uptime: 10 days, 1:02:03
+operational-mode: normal
+
+
+> show system last-commit-info
+
+commit-type: general
+description:
+
+
+> request license info
+
+License entry:
+Feature: Test Feature Active
+Description: A currently valid test license
+Serial: 999900001111
+Authcode:
+Issued: January 01, 2025
+Expires: January 01, 2030
+Expired?: no
+Base license: PA-VM
+
+License entry:
+Feature: Test Feature Expired
+Description: A lapsed test license
+Serial: 999900001111
+Authcode:
+Issued: January 01, 2018
+Expires: January 01, 2019
+Expired?: yes
+Base license: PA-VM
+
+
+> show high-availability all
+
+HA not enabled
+
+
+> show interface management
+
+-------------------------------------------------------------------------------
+Name: Management Interface
+Link status:
+  Runtime link speed/duplex/state: 10000/full/up

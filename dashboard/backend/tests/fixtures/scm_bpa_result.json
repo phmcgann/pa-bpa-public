@@ -1,0 +1,465 @@
+{
+ "best_practices": {
+  "device": {
+   "admin_role": null,
+   "authentication_portal": null,
+   "authentication_profile": null,
+   "authentication_profiles": null,
+   "authentication_sequence": null,
+   "certificate": null,
+   "device_setup_content_id": null,
+   "device_setup_management_interface": null,
+   "device_setup_services": [
+    {
+     "configuration": {
+      "location": "",
+      "uuid": ""
+     },
+     "warnings": [
+      {
+       "check_id": 104,
+       "check_name": "Verifying the identity of the update server should be enabled.",
+       "check_type": "Warning",
+       "check_message": "Enabling the firewall to verify the update server's identity helps to secure communication between devices and the update server by ensuring that the update server has an SSL certificate signed by a trusted authority.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 105,
+       "check_name": "No NTP server address is configured.",
+       "check_type": "Warning",
+       "check_message": "Configuring primary and secondary NTP servers keeps the firewall's clock synchronized with the NTP server clock. When all network firewalls and Panorama use NTP, all have synchronized clocks, so scheduled jobs run as expected and timestamps can help identify the root cause of various issues that involve multiple devices.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "ntp_servers.primary_ntp_server.ntp_server_address": ""
+       }
+      },
+      {
+       "check_id": 245,
+       "check_name": "The Minimum FQDN Refresh Time should be set to 30 seconds or less.",
+       "check_type": "Warning",
+       "check_message": "Setting the FQDN Refresh Time equal to or lower than 30 seconds ensures that FQDNs aren't outdated.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      }
+     ],
+     "notes": null,
+     "summary_remediation": {}
+    }
+   ],
+   "device_setup_session": null,
+   "device_setup_session-timeouts": null,
+   "device_setup_wildfire": null,
+   "device_setup_minimum_password_complexity": null,
+   "device_setup_policy_rulebase": null,
+   "device_setup_secure_communication": null,
+   "device_setup_logging_reporting": null,
+   "device_setup_authentication": null,
+   "device_setup_telemetry": null,
+   "device_setup_general": null,
+   "snmp_trap_server_profile": null,
+   "log_settings_system": null,
+   "log_settings_config": null,
+   "dynamic_updates": null,
+   "high_availability": null,
+   "ldap_server_profile": null,
+   "radius_server_profile": null,
+   "snippet": null,
+   "tacplus_server_profile": null,
+   "external_dynamic_list": null,
+   "ssl_tls_service_profile": null,
+   "syslog_server_profile": null,
+   "scheduled_config_export": null
+  },
+  "network": {
+   "global_protect_gateway": [
+    {
+     "configuration": {
+      "name": "corp-gateway",
+      "location": "vsys1",
+      "uuid": ""
+     },
+     "warnings": [
+      {
+       "check_id": 78,
+       "check_name": "The GlobalProtect Gateway Agent's split tunnel Client Settings for the access route should include all destinations.",
+       "check_type": "Warning",
+       "check_message": "GlobalProtect extends Next-Generation Firewall security to remote and roaming users to provide secure access and communication across your enterprise. To ensure that all access is legitimate and all traffic is inspected, you must create an access route that sends all traffic through GlobalProtect. When you Include the 0.0.0.0/0 IP address in the Split Tunnel configuration, you ensure that traffic to all destinations goes through GlobalProtect.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 76,
+       "check_name": "GlobalProtect Gateway server authentication SSL/TLS Service Profile should set the minimum version to \"TLS 1.2\" and maximum to \"max\".",
+       "check_type": "Warning",
+       "check_message": "Older versions of the TLS protocol are less secure than TLSv1.2. Setting TLSv1.2 as the minimum version ensures strong cryptography for authentication traffic. Setting Max as the maximum version ensures that the configuration automatically supports newer versions as they come out.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "ssl_tls_service_profile.SSL TLS Service Profile.protocol_settings.min_version": "tls1-0"
+       }
+      },
+      {
+       "check_id": 77,
+       "check_name": "GlobalProtect Gateway client authentication should use a Certificate Profile, or Authentication Profile with Radius or SAML for two factor authentication.",
+       "check_type": "Warning",
+       "check_message": "Attackers steal credentials from unwitting users to gain network access. Two-factor authentication helps prevent unauthorized access by requiring not only user login credentials, but also a second factor of authentication, such as push authentication. When the attacker has only one authentication factor, the attacker can't gain access because the attacker can't respond to the second authentication factor.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "certificate_profile": "",
+        "client_auth": [
+         {
+          "authentication_message": "Enter login credentials",
+          "authentication_profile": "gp-ldap",
+          "auto_retrieve_passcode": "no",
+          "name": "ldap-auth",
+          "os": "Any",
+          "password_label": "Password",
+          "user_credential_or_client_cert_required": "no",
+          "username_label": "Username"
+         }
+        ]
+       }
+      },
+      {
+       "check_id": 79,
+       "check_name": "GlobalProtect Gateway satellite tunnel configuration does not detect replay attacks.",
+       "check_type": "Warning",
+       "check_message": "A replay attack is when attackers intercept a valid data transmission and then repeats or delays the transmission to gain unauthorized access to network assets or for other malicious purposes, usually as part of a spoofing attack.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "satellite_anti_replay": "no"
+       }
+      }
+     ],
+     "notes": null,
+     "summary_remediation": {}
+    }
+   ],
+   "global_protect_portal": null,
+   "global_protect_portal_agent_config": null,
+   "gre_tunnel": null,
+   "interface_management_profile": null,
+   "ipsec_crypto_profile": null,
+   "ike_crypto_profiles": null,
+   "zone": null,
+   "zone_protection_profile": null
+  },
+  "policies": {
+   "app_override": null,
+   "decryption_rule": null,
+   "decryption_rulebase": null,
+   "dos_protection_rule": null,
+   "policy_based_forwarding_rule": null,
+   "security_rule": [
+    {
+     "configuration": {
+      "name": "forwarded-rule",
+      "container": "vsys1",
+      "location": "vsys1",
+      "uuid": ""
+     },
+     "warnings": [
+      {
+       "check_id": 3,
+       "check_name": "Add a Description to the security rules.",
+       "check_type": "Informational",
+       "check_message": "The description helps other administrators understand the purpose of the rule and the intended result, which makes auditing and maintaining the rules easier.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "description": ""
+       }
+      },
+      {
+       "check_id": 4,
+       "check_name": "Update security rules, with an \"Allow\" action, to include \"Source\" and \"Destination\" address and zone criteria, ensuring that all fields are not set to \"Any\".",
+       "check_type": "Critical",
+       "check_message": "Restrict allow rules to specific source/destination pairs to prevent unnecessary, potentially malicious traffic and to reduce the attack surface.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 5,
+       "check_name": "Set the \"Service\" field in security rules, with an \"Allow\" action, to something other than \"Any\".",
+       "check_type": "Critical",
+       "check_message": "Restricting allow rules to a specific set of service ports helps to reduce the attack surface by preventing unauthorized access to network services on unsecured and non-standard ports. Attempting access on non-standard ports is a characteristic of evasive applications. App-ID must allow and process a small number of packets before it can identify an application. Specifying service ports in rules limits the ports these packets can use prior to application identification. The best service choice for most applications is \u2018application-default\u2019, which is the default set of ports defined in content for every app-id and updated dynamically through dynamic content updates.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 6,
+       "check_name": "Disable logging on security rules at session start, unless you are troubleshooting.",
+       "check_type": "Informational",
+       "check_message": "Application identification is likely to change as the firewall processes the first few packets of a session\u2019s traffic and become more granular (precise). Use the default setting \u2018Log at Session End\u2019 to identify the final application. Logging at session start also consumes more firewall resources.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 7,
+       "check_name": "Configure a Log Forwarding profile in security rules, to send logs to a dedicated storage device for longer-term retention.",
+       "check_type": "Informational",
+       "check_message": "The firewall has limited log storage space and when the space fills up, the firewall purges the oldest logs. Configure Log Forwarding for the traffic that matches each rule so the firewall forwards logs to a dedicated storage device for longer-term retention. We recommend forwarding logs to Cortex Data Lake (CDL) or to Panorama in Log Collector mode.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 9,
+       "check_name": "Disable Server Response Inspection in security rules with an \"Allow\" action.",
+       "check_type": "Critical",
+       "check_message": "Disabling server response inspection prevents the firewall from inspecting server-to-client flows and finding threats in their traffic. Disable server response inspection only if the server is trusted and you must increase performance.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 10,
+       "check_name": "Session Logging Enabled",
+       "check_type": "Informational",
+       "check_message": "Session logging is required for visibility and sending logs to Strata Logging Service.",
+       "check_passed": true,
+       "check_excluded": true,
+       "failed_fields": null
+      },
+      {
+       "check_id": 208,
+       "check_name": "A Security policy rule with the Action set to Allow should specify applications (App-IDs).",
+       "check_type": "Critical",
+       "check_message": "Specifying applications (App-IDs) in Security policy allow rules enables you to define the application traffic that you explicitly allow on your network. The traffic that you don't explicitly allow on your network is implicitly denied, which protects you from potentially malicious traffic from applications that your business doesn't use or want on its network. Create your own App-IDs for internal or custom applications so that you can control and inspect them in Security policy.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 351,
+       "check_name": "Remove Applications from security rules with an 'Allow' action which are not explicitly the Application Filters 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', or are not included in those Application Filters to prevent unauthorized use of unsanctioned Gen AI applications.",
+       "check_type": "Warning",
+       "check_message": "Safe use of Generative AI applications requires that only sanctioned Gen AI apps are allowed to be interactive with by users.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 352,
+       "check_name": "To avoid blocking Generative AI applications you have tagged as either 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', remove them from rules with an action which is not 'Allow'.",
+       "check_type": "Informational",
+       "check_message": "Rather than explicitly blocking applications tagged to 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps' Application Filters, it is recommended you remove the applications in question from those Application Filters by untagging them before adding a rule to block them.  You should already have a rule in place to block unsanctioned Gen AI apps.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 353,
+       "check_name": "Ensure that Source Users are included in the match criteria of security rules with an action of 'Allow', and application(s) which are included in the Application Filter 'Tolerated Gen AI apps'.",
+       "check_type": "Warning",
+       "check_message": "Security rules allowing 'Tolerated Gen AI apps' should be limited to specific users and use cases. General use of Gen AI apps should be limited to those apps you classify as 'Sanctioned'",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 354,
+       "check_name": "Ensure Data Filtering, or Data Loss Prevention (DLP) is enabled for security rules with an action of 'Allow' and application(s) which are included in the Application Filter 'Gen AI apps'.",
+       "check_type": "Critical",
+       "check_message": "Safely enabling the use of Generative AI applications requires scanning of the Gen AI traffic with Data Loss Prevention (DLP) to ensure sensitive data is not shared outside your Organization.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 410,
+       "check_name": "Security policy rules with deny/drop/reset actions should use both AIPD C2 and malware EDLs in source or destination",
+       "check_type": "Warning",
+       "check_message": "Block traffic to and from known C2 infrastructure and IPs hardcoded in malware. The built-in 'Palo Alto Networks - Adv. IP Defense: C2 infrastructure' and 'Hardcoded in malware' EDLs are updated dynamically based on the latest threat intelligence.",
+       "check_passed": true,
+       "check_excluded": true,
+       "failed_fields": null
+      }
+     ],
+     "notes": null,
+     "summary_remediation": {}
+    },
+    {
+     "configuration": {
+      "name": "local-only-rule",
+      "container": "vsys1",
+      "location": "vsys1",
+      "uuid": ""
+     },
+     "warnings": [
+      {
+       "check_id": 3,
+       "check_name": "Add a Description to the security rules.",
+       "check_type": "Informational",
+       "check_message": "The description helps other administrators understand the purpose of the rule and the intended result, which makes auditing and maintaining the rules easier.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "description": ""
+       }
+      },
+      {
+       "check_id": 4,
+       "check_name": "Update security rules, with an \"Allow\" action, to include \"Source\" and \"Destination\" address and zone criteria, ensuring that all fields are not set to \"Any\".",
+       "check_type": "Critical",
+       "check_message": "Restrict allow rules to specific source/destination pairs to prevent unnecessary, potentially malicious traffic and to reduce the attack surface.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 5,
+       "check_name": "Set the \"Service\" field in security rules, with an \"Allow\" action, to something other than \"Any\".",
+       "check_type": "Critical",
+       "check_message": "Restricting allow rules to a specific set of service ports helps to reduce the attack surface by preventing unauthorized access to network services on unsecured and non-standard ports. Attempting access on non-standard ports is a characteristic of evasive applications. App-ID must allow and process a small number of packets before it can identify an application. Specifying service ports in rules limits the ports these packets can use prior to application identification. The best service choice for most applications is \u2018application-default\u2019, which is the default set of ports defined in content for every app-id and updated dynamically through dynamic content updates.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 6,
+       "check_name": "Disable logging on security rules at session start, unless you are troubleshooting.",
+       "check_type": "Informational",
+       "check_message": "Application identification is likely to change as the firewall processes the first few packets of a session\u2019s traffic and become more granular (precise). Use the default setting \u2018Log at Session End\u2019 to identify the final application. Logging at session start also consumes more firewall resources.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 7,
+       "check_name": "Configure a Log Forwarding profile in security rules, to send logs to a dedicated storage device for longer-term retention.",
+       "check_type": "Informational",
+       "check_message": "The firewall has limited log storage space and when the space fills up, the firewall purges the oldest logs. Configure Log Forwarding for the traffic that matches each rule so the firewall forwards logs to a dedicated storage device for longer-term retention. We recommend forwarding logs to Cortex Data Lake (CDL) or to Panorama in Log Collector mode.",
+       "check_passed": false,
+       "check_excluded": false,
+       "failed_fields": {
+        "log_setting": ""
+       }
+      },
+      {
+       "check_id": 9,
+       "check_name": "Disable Server Response Inspection in security rules with an \"Allow\" action.",
+       "check_type": "Critical",
+       "check_message": "Disabling server response inspection prevents the firewall from inspecting server-to-client flows and finding threats in their traffic. Disable server response inspection only if the server is trusted and you must increase performance.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 10,
+       "check_name": "Session Logging Enabled",
+       "check_type": "Informational",
+       "check_message": "Session logging is required for visibility and sending logs to Strata Logging Service.",
+       "check_passed": true,
+       "check_excluded": true,
+       "failed_fields": null
+      },
+      {
+       "check_id": 208,
+       "check_name": "A Security policy rule with the Action set to Allow should specify applications (App-IDs).",
+       "check_type": "Critical",
+       "check_message": "Specifying applications (App-IDs) in Security policy allow rules enables you to define the application traffic that you explicitly allow on your network. The traffic that you don't explicitly allow on your network is implicitly denied, which protects you from potentially malicious traffic from applications that your business doesn't use or want on its network. Create your own App-IDs for internal or custom applications so that you can control and inspect them in Security policy.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 351,
+       "check_name": "Remove Applications from security rules with an 'Allow' action which are not explicitly the Application Filters 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', or are not included in those Application Filters to prevent unauthorized use of unsanctioned Gen AI applications.",
+       "check_type": "Warning",
+       "check_message": "Safe use of Generative AI applications requires that only sanctioned Gen AI apps are allowed to be interactive with by users.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 352,
+       "check_name": "To avoid blocking Generative AI applications you have tagged as either 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', remove them from rules with an action which is not 'Allow'.",
+       "check_type": "Informational",
+       "check_message": "Rather than explicitly blocking applications tagged to 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps' Application Filters, it is recommended you remove the applications in question from those Application Filters by untagging them before adding a rule to block them.  You should already have a rule in place to block unsanctioned Gen AI apps.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 353,
+       "check_name": "Ensure that Source Users are included in the match criteria of security rules with an action of 'Allow', and application(s) which are included in the Application Filter 'Tolerated Gen AI apps'.",
+       "check_type": "Warning",
+       "check_message": "Security rules allowing 'Tolerated Gen AI apps' should be limited to specific users and use cases. General use of Gen AI apps should be limited to those apps you classify as 'Sanctioned'",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 354,
+       "check_name": "Ensure Data Filtering, or Data Loss Prevention (DLP) is enabled for security rules with an action of 'Allow' and application(s) which are included in the Application Filter 'Gen AI apps'.",
+       "check_type": "Critical",
+       "check_message": "Safely enabling the use of Generative AI applications requires scanning of the Gen AI traffic with Data Loss Prevention (DLP) to ensure sensitive data is not shared outside your Organization.",
+       "check_passed": true,
+       "check_excluded": false,
+       "failed_fields": null
+      },
+      {
+       "check_id": 410,
+       "check_name": "Security policy rules with deny/drop/reset actions should use both AIPD C2 and malware EDLs in source or destination",
+       "check_type": "Warning",
+       "check_message": "Block traffic to and from known C2 infrastructure and IPs hardcoded in malware. The built-in 'Palo Alto Networks - Adv. IP Defense: C2 infrastructure' and 'Hardcoded in malware' EDLs are updated dynamically based on the latest threat intelligence.",
+       "check_passed": true,
+       "check_excluded": true,
+       "failed_fields": null
+      }
+     ],
+     "notes": null,
+     "summary_remediation": {}
+    }
+   ],
+   "security_rulebase": null,
+   "captive_portal_rule": null,
+   "tunnel_inspection": null
+  },
+  "objects": {
+   "address": null,
+   "address_group": null,
+   "anti_spyware_profile": null,
+   "antivirus_profile": null,
+   "antivirus_wildfire_analysis_profile": null,
+   "application": null,
+   "application_filter": null,
+   "application_group": null,
+   "application_tag": null,
+   "authentication_rules": null,
+   "decryption_profile": null,
+   "dns_security_profile": null,
+   "dos_protection_profile": null,
+   "dynamic_user_group": null,
+   "file_blocking_profile": null,
+   "gre_tunnel": null,
+   "hip_objects": null,
+   "hip_profile": null,
+   "log_forwarding_profile": null,
+   "region": null,
+   "schedule": null,
+   "service": null,
+   "service_group": null,
+   "snmp_trap_server_profile": null,
+   "tag": null,
+   "url_filtering_profile": null,
+   "user_id": null,
+   "variable": null,
+   "vulnerability_protection_profile": null,
+   "wildfire_analysis_profile": null
+  }
+ },
+ "version": "1",
+ "config_version": "10.0.0"
+}

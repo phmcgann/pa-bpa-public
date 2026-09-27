@@ -1,0 +1,208 @@
+<?xml version="1.0"?>
+<config version="11.1.0" urldb="paloaltonetworks">
+  <mgt-config>
+    <users>
+      <entry name="panorama-admin">
+        <phash>$1$abcdefgh$somehash</phash>
+        <permissions><role-based><superuser>yes</superuser></role-based></permissions>
+      </entry>
+    </users>
+  </mgt-config>
+
+  <devices>
+    <entry name="localhost.localdomain">
+      <device-group>
+        <entry name="test-dg">
+          <devices>
+            <entry name="001122334455"/>
+          </devices>
+          <reference-templates>
+            <member>stk-test</member>
+          </reference-templates>
+          <pre-rulebase>
+            <security>
+              <rules>
+                <entry name="dg-pre-allow-web">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <source><member>any</member></source>
+                  <destination><member>any</member></destination>
+                  <application><member>web-browsing</member></application>
+                  <service><member>application-default</member></service>
+                  <action>allow</action>
+                  <log-end>yes</log-end>
+                  <description>DG pre-rule</description>
+                  <profile-setting><group><member>secgrp_dg-strict</member></group></profile-setting>
+                </entry>
+              </rules>
+            </security>
+          </pre-rulebase>
+          <post-rulebase>
+            <security>
+              <rules>
+                <entry name="dg-post-deny-all">
+                  <from><member>any</member></from>
+                  <to><member>any</member></to>
+                  <source><member>any</member></source>
+                  <destination><member>any</member></destination>
+                  <application><member>any</member></application>
+                  <service><member>any</member></service>
+                  <action>deny</action>
+                  <log-end>yes</log-end>
+                </entry>
+              </rules>
+            </security>
+          </post-rulebase>
+        </entry>
+      </device-group>
+
+      <template>
+        <entry name="tmplA-zones">
+          <config>
+            <devices>
+              <entry name="localhost.localdomain">
+                <vsys>
+                  <entry name="vsys1">
+                    <zone>
+                      <entry name="zone-a"><network><layer3/></network></entry>
+                    </zone>
+                  </entry>
+                </vsys>
+                <deviceconfig>
+                  <system>
+                    <login-banner>Authorized use only.</login-banner>
+                  </system>
+                </deviceconfig>
+              </entry>
+            </devices>
+          </config>
+        </entry>
+        <entry name="tmplB-zones-and-syslog">
+          <config>
+            <devices>
+              <entry name="localhost.localdomain">
+                <vsys>
+                  <entry name="vsys1">
+                    <zone>
+                      <entry name="zone-b"><network><layer3/></network></entry>
+                    </zone>
+                  </entry>
+                </vsys>
+              </entry>
+            </devices>
+            <shared>
+              <log-settings>
+                <syslog>
+                  <entry name="template-embedded-siem">
+                    <server>
+                      <entry name="template-embedded-siem">
+                        <server>10.0.0.99</server>
+                        <port>514</port>
+                      </entry>
+                    </server>
+                  </entry>
+                </syslog>
+              </log-settings>
+            </shared>
+          </config>
+        </entry>
+      </template>
+
+      <template-stack>
+        <entry name="stk-test">
+          <templates>
+            <member>tmplA-zones</member>
+            <member>tmplB-zones-and-syslog</member>
+          </templates>
+          <config>
+            <devices>
+              <entry name="localhost.localdomain">
+                <vsys>
+                  <entry name="vsys1">
+                    <zone>
+                      <entry name="zone-c-stack-own"><network><layer3/></network></entry>
+                    </zone>
+                  </entry>
+                </vsys>
+              </entry>
+            </devices>
+          </config>
+        </entry>
+      </template-stack>
+    </entry>
+  </devices>
+
+  <shared>
+    <profiles>
+      <virus>
+        <entry name="shared-av"/>
+      </virus>
+    </profiles>
+    <profile-group>
+      <entry name="secgrp_dg-strict">
+        <virus><member>shared-av</member></virus>
+      </entry>
+    </profile-group>
+    <pre-rulebase>
+      <security>
+        <rules>
+          <entry name="shared-pre-block-known-bad">
+            <from><member>any</member></from>
+            <to><member>any</member></to>
+            <source><member>any</member></source>
+            <destination><member>any</member></destination>
+            <application><member>any</member></application>
+            <service><member>any</member></service>
+            <action>deny</action>
+            <log-end>yes</log-end>
+            <description>Shared pre-rule</description>
+          </entry>
+        </rules>
+      </security>
+    </pre-rulebase>
+    <post-rulebase>
+      <security>
+        <rules>
+          <entry name="shared-post-catch-all">
+            <from><member>any</member></from>
+            <to><member>any</member></to>
+            <source><member>any</member></source>
+            <destination><member>any</member></destination>
+            <application><member>any</member></application>
+            <service><member>any</member></service>
+            <action>deny</action>
+            <log-end>yes</log-end>
+          </entry>
+        </rules>
+      </security>
+    </post-rulebase>
+  </shared>
+
+  <!-- Readonly mirror of the same device-group name, with a DECOY extra rule.
+       A naive ".//device-group" or ".//devices" search would double-count this. -->
+  <readonly>
+    <devices>
+      <entry name="localhost.localdomain">
+        <device-group>
+          <entry name="test-dg">
+            <pre-rulebase>
+              <security>
+                <rules>
+                  <entry name="readonly-decoy-rule">
+                    <from><member>any</member></from>
+                    <to><member>any</member></to>
+                    <source><member>any</member></source>
+                    <destination><member>any</member></destination>
+                    <application><member>any</member></application>
+                    <service><member>any</member></service>
+                    <action>allow</action>
+                  </entry>
+                </rules>
+              </security>
+            </pre-rulebase>
+          </entry>
+        </device-group>
+      </entry>
+    </devices>
+  </readonly>
+</config>

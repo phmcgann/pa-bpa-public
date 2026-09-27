@@ -1,0 +1,1671 @@
+{
+ "_about": "Palo Alto Networks Strata Cloud Manager (SCM) Best Practice Assessment checks, as returned by the Posture Management API (POST /posture/checks/v1/reports/config-file-upload) for synthetic NGFW configs built to populate as many object types as possible. Names, severities and descriptions are Palo Alto's own wording. Only checks that ran against the synthetic configs are listed; refresh with scripts/fetch_scm_checks.py when the all-checks endpoint is reachable.",
+ "retrieved": "2026-09-23",
+ "platform": "ngfw",
+ "checks": [
+  {
+   "id": 3,
+   "name": "Add a Description to the security rules.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "The description helps other administrators understand the purpose of the rule and the intended result, which makes auditing and maintaining the rules easier."
+  },
+  {
+   "id": 4,
+   "name": "Update security rules, with an \"Allow\" action, to include \"Source\" and \"Destination\" address and zone criteria, ensuring that all fields are not set to \"Any\".",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Restrict allow rules to specific source/destination pairs to prevent unnecessary, potentially malicious traffic and to reduce the attack surface."
+  },
+  {
+   "id": 5,
+   "name": "Set the \"Service\" field in security rules, with an \"Allow\" action, to something other than \"Any\".",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Restricting allow rules to a specific set of service ports helps to reduce the attack surface by preventing unauthorized access to network services on unsecured and non-standard ports. Attempting access on non-standard ports is a characteristic of evasive applications. App-ID must allow and process a small number of packets before it can identify an application. Specifying service ports in rules limits the ports these packets can use prior to application identification. The best service choice for most applications is ‘application-default’, which is the default set of ports defined in content for every app-id and updated dynamically through dynamic content updates."
+  },
+  {
+   "id": 6,
+   "name": "Disable logging on security rules at session start, unless you are troubleshooting.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Application identification is likely to change as the firewall processes the first few packets of a session’s traffic and become more granular (precise). Use the default setting ‘Log at Session End’ to identify the final application. Logging at session start also consumes more firewall resources."
+  },
+  {
+   "id": 7,
+   "name": "Configure a Log Forwarding profile in security rules, to send logs to a dedicated storage device for longer-term retention.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "The firewall has limited log storage space and when the space fills up, the firewall purges the oldest logs. Configure Log Forwarding for the traffic that matches each rule so the firewall forwards logs to a dedicated storage device for longer-term retention. We recommend forwarding logs to Cortex Data Lake (CDL) or to Panorama in Log Collector mode."
+  },
+  {
+   "id": 9,
+   "name": "Disable Server Response Inspection in security rules with an \"Allow\" action.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Disabling server response inspection prevents the firewall from inspecting server-to-client flows and finding threats in their traffic. Disable server response inspection only if the server is trusted and you must increase performance."
+  },
+  {
+   "id": 10,
+   "name": "Session Logging Enabled",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Session logging is required for visibility and sending logs to Strata Logging Service."
+  },
+  {
+   "id": 12,
+   "name": "Enable ‘Log at Session End’ for the \"interzone-default\" deny security rule.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "The ‘interzone-default’ deny rule at the bottom of the security policy rulebase denies all traffic between different zones. Enable ‘Log at Session End’ to gain visibility into the traffic the ‘interzone-default’ rule denies."
+  },
+  {
+   "id": 13,
+   "name": "Enable ‘Log at Session End’ for the \"intrazone-default\" allow security rule.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "The ‘intrazone-default’ allow rule near the bottom of the security policy rulebase allows all traffic within the same zone. Enable ‘Log at Session End’ to gain visibility into the traffic the ‘intrazone-default’ rule allows."
+  },
+  {
+   "id": 16,
+   "name": "User-ID must be enabled in source zones for it to be used effectively in security rules.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "In internal, trusted source zones, enable User-ID to control access to applications and resources based on users and user groups. Controlling access based on User-ID enables you to allow access to resources only to users who need access for business purposes. To control access by User-ID in a zone, \"Enable User Identification\" in the zone (Network > Zone) and specify users and groups in each Security policy rule for that zone. Never enable User-ID on external untrusted zones."
+  },
+  {
+   "id": 17,
+   "name": "Enable monitoring of next-hop or target IP address in Policy Based Forwarding (PBF) rules.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "policy_based_forwarding_rule",
+   "description": "Monitoring the next-hop or target IP address to verify connectivity enables the firewall to take the action specified in the Monitor Profile if the egress interface fails or the route goes down. This prevents or minimizes service interruptions due to a path failure."
+  },
+  {
+   "id": 19,
+   "name": "Attach a Decryption profile to Decryption rules.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "decryption_rule",
+   "description": "Decryption profiles specify SSL protocol settings, such as the TLS protocol versions, key exchange algorithms, encryption algorithms, and authentication algorithms you allow on your network. Decryption profiles also perform server certificate checks, unsupported mode checks, and failure checks. Use the most recent version of TLS you can, block outdated algorithms, block sessions with expired certificates, and block sessions with untrusted certificate issuers."
+  },
+  {
+   "id": 21,
+   "name": "Remove Application Override policy.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "app_override",
+   "description": "Security policy rules inspect allowed application traffic for malicious content and prevent malicious content from entering your network. Applications used in Security policy (Palo Alto Networks App-IDs and custom App-IDs that you create and configure with a decoder) have signatures and decoders that the firewall uses to identify, control , and inspect the application traffic. Application Override policies that specify applications for which there is no decoder (usually custom applications for which no decoder has been configured) bypass threat inspection and increase the risk of malicious content entering your network. To inspect the traffic and secure the application, create custom App-IDs with decoders (or request App-IDs from Palo Alto Networks) and use them in Security policy instead of using Application Override policies."
+  },
+  {
+   "id": 22,
+   "name": "Update the Authentication Portal configuration to use Kerberos for authentication based on a default or custom browser challenge.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "authentication_rules",
+   "description": "Kerberos is the most secure option for authentication because Kerberos encrypts data, doesn't store or send passwords over the network, and enables single sign on (SSO)."
+  },
+  {
+   "id": 26,
+   "name": "Set the DoS Protection policy rule Action to \"Protect\".",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "dos_protection_rule",
+   "description": "A denial-of-service (DoS) attack is a surge of traffic designed to consume the target's resources and deny services to legitimate users. DoS Protection policies prevent the amount of traffic a target device receives from overwhelming the device's resources and maintains availability for legitimate traffic. If the DoS policy rule Action isn't \"Protect\", the firewall either allows all traffic to the target (\"Allow\" Action) without protecting against DoS attacks or drops all traffic to the target (\"Deny\" Action), including legitimate traffic. \"Protect\" is the only option that both prevents DoS attacks and maintains availability.\n\nHow you configure DoS Protection depends on your network traffic, the capacity of firewalls, how you configure Zone Protection, and the devices you want to protect from DoS attacks. Refer to https://docs.paloaltonetworks.com/best-practices/dos-and-zone-protection-best-practices/dos-and-zone-protection-best-practices for how to configure DoS Protection in conjunction with all the capabilities you need to prevent DoS and DDoS attacks."
+  },
+  {
+   "id": 31,
+   "name": "Remove threat exceptions from the Antivirus profile.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "The only reason to create an exception is if an identified virus is not actually a threat. If you discover a Threat ID that you do not believe is a virus (a false positive), open a support case with TAC for Palo Alto Networks to fix the incorrectly identified signature. Once the issue is resolved, remove the exception from the profile."
+  },
+  {
+   "id": 32,
+   "name": "Remove application exceptions from the Antivirus profile.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "If a legitimate application is incorrectly identified as carrying a virus (a false positive), open a support case with TAC for Palo Alto Networks to fix the incorrectly identified virus. Once the issue is resolved, remove the exception from the profile."
+  },
+  {
+   "id": 33,
+   "name": "Set the protocol decoder Action, for all signatures, in the Antivirus Profile to \"reset-both\".",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Setting the Signature Action for all protocol decoders in the Antivirus profile to \"reset-both\" ensures that the firewall blocks all detected threats for the protocols. Resetting both ends of the connections is better than resetting only the client or only the server unless there are business reasons not to reset one end of the connection. Clone and edit the predefined default Antivirus profile to create a best practices profile."
+  },
+  {
+   "id": 34,
+   "name": "Set the protocol decoder Action, for WildFire Signatures, in the Antivirus profile to \"reset-both\".",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "The default WildFire Signature Action setting in Antivirus profiles is based on WildFire content signature updates. Setting the WildFire Signature Action for all protocol decoders in the Antivirus profile to \"reset-both\" ensures that the firewall blocks all detected threats for the protocols. Resetting both ends of the connections is better than resetting only the client or only the server unless there are business reasons not to reset one end of the connection. Clone and edit the predefined default Antivirus profile to create a best practices profile."
+  },
+  {
+   "id": 35,
+   "name": "Don't enable packet capture in Antivirus profiles.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Instead of enabling packet capture on a widely-applied profile, create a custom Antivirus profile and enable it on one or just a few rules for which you want to know more about a threat."
+  },
+  {
+   "id": 36,
+   "name": "Remove threat exceptions from the Anti-Spyware profile.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "Attach an Anti-Spyware profile to Security policy rules to scan traffic for spyware and take the action defined in the profile to protect the network. If you configure exceptions in the profile, the firewall doesn't scan for those Spyware signatures. The only reason to create an exception is if you believe that a signature identified Spyware is not actually a threat (false positive). If this happens, open a support case with TAC for Palo Alto Networks to fix the incorrectly identified signature. Once the issue is resolved, remove the exception from the profile."
+  },
+  {
+   "id": 38,
+   "name": "Update the Anti-Spyware profile and set the DNS Policy \"Action\" setting to \"sinkhole\" and enable packet capture.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "DNS sinkholing helps you identify malware-infected hosts on a protected network in situations where the firewall cannot see the originating, infected client's DNS query. Sinkholing identifies the infected host and prevents it from contacting the potentially malicious DNS server."
+  },
+  {
+   "id": 40,
+   "name": "Update the Anti-Spyware profile to include a rule for \"critical\", \"high\", and \"medium\" severities with an action set to \"reset-both\", “drop”, “reset-client”, “reset-server”, or “block-ip” and packet capture enabled.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "To prevent spyware activity on the network, clone the predefined strict Anti-Spyware profile and retain the default ‘reset-both’ Action for critical, high, and medium severity levels. If business reasons prevent resetting both the server and the client, set the Action to ‘drop’, ‘reset-client’, ‘reset-server’, or ‘block-ip’; however, ‘reset-both’ is safest because it resets both sides of the connection. For critical, high, and medium severity levels, enable single packet capture for the same traffic that you log."
+  },
+  {
+   "id": 41,
+   "name": "Remove Vulnerability Protection Profile Threat Exceptions.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "vulnerability_protection_profile",
+   "description": "The Vulnerability Protection profile protects against buffer overflows, illegal code execution, and other attempts to exploit client-side and server-side vulnerabilities. Avoid adding threat exceptions to the profile that permits a threat. If you believe the default values identify a false positive, create a support ticket and report the false positive to Palo Alto Networks for investigation."
+  },
+  {
+   "id": 42,
+   "name": "Update the Vulnerability Protection profile to include a rule for \"critical\", \"high\", and \"medium\" severities with an action set to \"reset-both\", “drop”, “reset-client”, “reset-server”, or “block-ip” and packet capture enabled.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "vulnerability_protection_profile",
+   "description": "The Vulnerability Protection profile protects against buffer overflows, illegal code execution, and other attempts to exploit client- and server-side vulnerabilities. Clone the predefined strict Vulnerability Protection profile, retain the default ‘reset-both’ Action for critical, high, and medium severity levels (or if business reasons require it, change the Action to ‘drop’, ‘reset-client’, ‘reset-server’, or ‘block-ip’), and edit the cloned strict profile to enable single packet capture on those severity levels. If you use predefined profiles, clone and edit them or create a custom profile and make the necessary changes to pass best practices checks."
+  },
+  {
+   "id": 43,
+   "name": "Update URL Filtering Profiles to block known malicious URL categories.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent access to known malicious sites, configure the URL Filtering profile to block all known malicious URL categories: command-and-control, grayware, malware, phishing, and ransomware."
+  },
+  {
+   "id": 44,
+   "name": "Update URL Filtering Profiles to \"disable\" the setting \"Log only the URL container page\".",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "If you only log website container pages, you lose visibility into functional applications such as posting, uploading, downloading, etc. Disable \"Log Container Page Only\" in URL Filtering profiles to see the complete log so that you gain visibility into the real functional applications that users access."
+  },
+  {
+   "id": 45,
+   "name": "Update the File Blocking Profile to include a rule with a \"block\" action for common malicious file types (7z, bat, chm, class, cpl, dll, hlp, hta, jar, ocx, pif, scr, torrent, vbe, wsf), and an \"alert\" rule for all file types.  Application should always be set to \"any\" and Direction should always be set to \"both\".",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "file_blocking_profile",
+   "description": "The predefined strict File Blocking profile blocks files commonly seen in malware attack campaigns and for which no real upload/download use case exists. This includes batch files, DLLs, Java class files, help files, Windows shortcuts (.lnk), BitTorrent files, .rar files, .tar files, encrypted-rar and encrypted-zip files, multi-level encoded files (files encoded or compressed up to four times), .hta files, and Windows Portable Executable (PE) files, which include .exe, .cpl, .dll, .ocx, .sys, .scr, .drv, .efi, .fon, and .pif files. The profile identifies file transfer activity between different network segments (zones)."
+  },
+  {
+   "id": 47,
+   "name": "Update the WildFire Analysis profile and set the \"File Types\" and \"Applications\" settings to \"any\".",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "wildfire_analysis_profile",
+   "description": "The WildFire Cloud and the on-premises WildFire private cloud analyze files they haven’t seen before. The default WildFire Analysis profile sends all new files and email links for all applications to WildFire for analysis. WildFire then reaches a verdict and classifies each file as malicious, grayware, phishing, or benign. Setting the ‘Applications’ and ‘File Types’ settings to ‘any’ ensures that the firewall sends all supported file types and email links for analysis."
+  },
+  {
+   "id": 49,
+   "name": "Enable Flood Protection thresholds for all protocols in DoS Protection profiles.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "dos_protection_profile",
+   "description": "Enable and configure flood thresholds for each protocol in each DoS Protection Profile to protect against SYN floods, UDP floods, ICMP floods, ICMPv6 floods, and other IP flood attacks."
+  },
+  {
+   "id": 50,
+   "name": "Use appropriate flood protection threshold values for the Alarm Rate, Activate Rate, and Max Rate.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "dos_protection_profile",
+   "description": "Every network is different, with different segmentation, bandwidth usage, traffic types, resources, etc. Therefore, the correct connections-per-second (CPS) threshold values for flood attack mitigation for the Alarm Rate, Activate Rate, and Max Rate are different for every network. To determine the correct threshold values, take baseline measurements of the normal and peak CPS for each interface or zone over a period of at least one normal business week."
+  },
+  {
+   "id": 51,
+   "name": "Update the Log Forwarding profile to forward logs to Panorama, Cortex Data Lake, or syslog for external storage.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "log_forwarding_profile",
+   "description": "Firewalls have limited log storage space. When that space fills up, the oldest logs are deleted to make room for the newest logs. To preserve logs for compliance, analytics, monitoring, reviewing abnormal activity, analyzing threat behaviors, and long-term pattern analysis, forward logs to long-term external storage (Panorama, CDL, syslog). Attach Log Forwarding profiles to Security, Authentication, Decryption, and DoS policy rules, and to zones."
+  },
+  {
+   "id": 52,
+   "name": "Update the Log Forwarding profile to forward Threat logs.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "log_forwarding_profile",
+   "description": "Configure Log Forwarding profiles to forward low, medium, high, and critical severity Threat logs to external long-term log storage (Panorama, Cortex Data Lake, or syslog) so that you can analyze potential threats over time."
+  },
+  {
+   "id": 53,
+   "name": "Update the Log Forwarding profile to forward WildFire logs.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "log_forwarding_profile",
+   "description": "Forward WildFire logs to ensure that malware and phishing verdict logs are handled correctly. Forward WildFire malware and phishing verdict logs to your high-priority alert queue so you can take appropriate action quickly."
+  },
+  {
+   "id": 55,
+   "name": "SSL Forward Proxy settings in a Decryption profile should all be enabled, except \"Strip ALPN\", which should be disabled to decrypt HTTP/2 traffic.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "A Decryption profile enables you to perform checks on decrypted traffic and on SSL traffic that you choose to exclude from decryption. Enforce all security options to ensure that SSL-enabled sites meet minimum security requirements before you allow users to connect to them. 'Strip ALPN' is an option to allow downgrading from HTTP2 to HTTP1.1 and does not make your network more secure."
+  },
+  {
+   "id": 56,
+   "name": "SSL Inbound Inspection options in the Decryption Profile should all be enabled.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "Decryption profiles enable you to block and control specific aspects of SSL Inbound Inspection traffic. Enable unsupported mode checks to block sessions with unsupported versions and unsupported cipher suites. The ciphers and certificates required for SSL Inbound Inspection depend on what the internal server that you’re protecting supports."
+  },
+  {
+   "id": 57,
+   "name": "Set the SSL Protocol Version range to TLS 1.2 or higher in all Decryption Profiles to enforce modern security standards.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "TLS 1.0 and 1.1 are officially deprecated and contain fundamental cryptographic weaknesses. Enforcing TLS 1.2 as a minimum ensures that sessions utilize stronger handshake mechanisms and cipher suites, aligning with NIST and PCI DSS compliance requirements."
+  },
+  {
+   "id": 58,
+   "name": "Enable the \"Block sessions with expired certificates\" setting in No-Decryption profiles to prevent untrusted traffic.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "A certificate with an expired validity date no longer carries a guarantee of trust or ownership. By blocking these sessions, the firewall ensures that even traffic bypassed for decryption still adheres to basic identity verification standards."
+  },
+  {
+   "id": 59,
+   "name": "SSH Proxy Unsupported Mode Checks are disabled in the Decryption profile.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "Blocking sessions with unsupported versions and unsupported algorithms prevents access to sites that use weak, vulnerable decryption ciphers that allow malicious actors to decrypt your traffic. In conjunction with limiting SSH access to only administrators who manage network devices using SSH, logging all SSH traffic, and using multi-factor authentication, blocking sessions with unsupported versions and unsupported algorithms reduces the attack surface."
+  },
+  {
+   "id": 60,
+   "name": "A Zone Protection profile should be configured.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "zone",
+   "description": "Zone Protection profiles provide another layer of protection against floods after your dedicated perimeter DDoS prevention device and DoS Protection. Zone Protection profiles protect against IP floods, reconnaissance probing, packet based attacks, and non-IP protocol attacks. Set appropriate Flood Protection thresholds for each zone based on normal and peak connections-per-second (CPS) measurements to alert and activate protection against SYN, UDP, ICMP, ICMPv6, and Other IP flood attacks. Enable Reconnaissance Protection to prevent port scans and host sweeps probing for open ports. Enable Packet Based Attack Protection to check packet headers and inspect for abnormal characteristics and options. Enable Protocol Protection to defend against non-IP protocols in Layer 2 and Vwire zones based on allow listing only the protocols used in your network."
+  },
+  {
+   "id": 63,
+   "name": "The SSL/TLS service profile used to authenticate services should have a minimum version of \"TLSv1.2\" and a maximum version of \"max\".",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "ssl_tls_service_profile",
+   "description": "TLSv1.2 provides much stronger protection against SSL/TLS protocol vulnerabilities than earlier TLS versions, so TLSv1.2 is the minimum version to use for authentication purposes. Setting the maximum version to \"Max\" ensures that you automatically support newer TLS versions as they are developed."
+  },
+  {
+   "id": 65,
+   "name": "Add the Global Protect Portal Agent Trusted Root Certificate Authority (CA).",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "In the Global Protect Portal Agent configuration, specify the Trusted Root Certificate Authority (CA) certificate that the Global Protect app will use to verify the identity of the Global Protect portal and gateways. If the portal or gateway presents a certificate that has not been signed or issued by the same certificate authority that issued the Trusted Root CA certificate, the Global Protect app cannot establish a connection with the portal or gateway."
+  },
+  {
+   "id": 67,
+   "name": "Configure the GlobalProtect portal to use two-factor authentication for portal and gateways.",
+   "severity": "Informational",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "To strengthen the protection of sensitive resources or to comply with regulatory requirements, configure the GlobalProtect portal to use two-factor authentication. You can configure two-factor authentication using certificate and authentication profiles, one-time passwords (OTPs)/tokens, or smart cards."
+  },
+  {
+   "id": 68,
+   "name": "The GlobalProtect Portal agent configuration should have either IPv4 or IPv6 internal host detection enabled.",
+   "severity": "Informational",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "Internal host detection enables the GlobalProtect app to determine whether an endpoint is inside the enterprise (internal) network. If the GlobalProtect app detects an internal host on the endpoint, the endpoint is inside the enterprise network and can connect to an internal gateway. If the GlobalProtect app cannot detect an internal host on the endpoint, the endpoint is outside the enterprise network and must connect to an external gateway to access the network. This saves time by connecting the endpoint to the right gateway on the first access attempt and determines whether an endpoint is internal or external to the network."
+  },
+  {
+   "id": 69,
+   "name": "Disconnecting from the GlobalProtect app is allowed so the Disconnect Timeout (Disable Timeout) for applications should be set.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "The \"Allow user to disconnect GlobalProtect app\" option (Network  > GlobalProtect > Portals > Agent > App > App Configurations > Allow user to disconnect GlobalProtect App (Always-on mode)) permits users to disconnect from the GlobalProtect app. When users disconnect from GlobalProtect, GlobalProtect can't inspect the traffic and enforce policy. Setting a \"Disconnect Timeout\" restricts the amount of time users can disconnect from the app. When the timeout elapses, the GlobalProtect app reconnects and secures the user. (In different PAN-OS versions,  the knob is named Allow user to disconnect GlobalProtect App (Always-on mode) or Allow user to disable GlobalProtect App (Always-on mode))."
+  },
+  {
+   "id": 71,
+   "name": "The Connect Method is User Logon so the GlobalProtect Portal Agent configuration should enforce the use of GlobalProtect to secure network access.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "When you \"Enforce GlobalProtect Connection for Network Access\", GlobalProtect blocks all network traffic to and from the endpoint until the application connects to an internal gateway inside the enterprise network or to an external gateway outside the enterprise network. This prevents uninspected traffic from entering your network. After the application establishes a secure connection, all network traffic is sent to the firewall for inspection and policy enforcement."
+  },
+  {
+   "id": 72,
+   "name": "The GlobalProtect Portal Agent should collect Host Information Profile (HIP) data.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "Enable GlobalProtect to \"Collect HIP Data\" so that the GlobalProtect app collects and sends HIP data from the endpoint to the firewall for HIP-based policy enforcement. The firewall matches HIP data to the HIP objects and/or HIP profiles that you define for policy enforcement. Depending on which HIP object and/or HIP profile the HIP data matches, the firewall enforces the corresponding security policies to grant or deny network access to endpoints. \"Collect HIP Data\" is enabled by default."
+  },
+  {
+   "id": 74,
+   "name": "GlobalProtect Portal Missing Satellite Trusted Root CA",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_portal",
+   "description": "Specifying Trusted Root CA certificates and intermediate certificates in the portal satellite configuration (Network > GlobalProtect > Portals > <portal-config> > Satellite) enables GlobalProtect satellites to verify gateway server certificates and establish secure VPN tunnel connections to GlobalProtect gateways. Satellite Trusted Root CA certificates are pushed to endpoints at the same time as the portal agent configuration."
+  },
+  {
+   "id": 76,
+   "name": "GlobalProtect Gateway server authentication SSL/TLS Service Profile should set the minimum version to \"TLS 1.2\" and maximum to \"max\".",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_gateway",
+   "description": "Older versions of the TLS protocol are less secure than TLSv1.2. Setting TLSv1.2 as the minimum version ensures strong cryptography for authentication traffic. Setting Max as the maximum version ensures that the configuration automatically supports newer versions as they come out."
+  },
+  {
+   "id": 77,
+   "name": "GlobalProtect Gateway client authentication should use a Certificate Profile, or Authentication Profile with Radius or SAML for two factor authentication.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_gateway",
+   "description": "Attackers steal credentials from unwitting users to gain network access. Two-factor authentication helps prevent unauthorized access by requiring not only user login credentials, but also a second factor of authentication, such as push authentication. When the attacker has only one authentication factor, the attacker can't gain access because the attacker can't respond to the second authentication factor."
+  },
+  {
+   "id": 78,
+   "name": "The GlobalProtect Gateway Agent's split tunnel Client Settings for the access route should include all destinations.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_gateway",
+   "description": "GlobalProtect extends Next-Generation Firewall security to remote and roaming users to provide secure access and communication across your enterprise. To ensure that all access is legitimate and all traffic is inspected, you must create an access route that sends all traffic through GlobalProtect. When you Include the 0.0.0.0/0 IP address in the Split Tunnel configuration, you ensure that traffic to all destinations goes through GlobalProtect."
+  },
+  {
+   "id": 79,
+   "name": "GlobalProtect Gateway satellite tunnel configuration does not detect replay attacks.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "global_protect_gateway",
+   "description": "A replay attack is when attackers intercept a valid data transmission and then repeats or delays the transmission to gain unauthorized access to network assets or for other malicious purposes, usually as part of a spoofing attack."
+  },
+  {
+   "id": 86,
+   "name": "Reconnaissance Protection should be enabled in the Zone Protection profile.",
+   "severity": "Informational",
+   "section": "network",
+   "object_type": "zone_protection_profile",
+   "description": "Enable Reconnaissance Protection on all zones to block potentially malicious port scans and host sweeps that attempt to discover weaknesses to exploit in your network devices."
+  },
+  {
+   "id": 87,
+   "name": "Packet Based Attack Protection settings in the Zone Protection profile should be enabled.",
+   "severity": "Informational",
+   "section": "network",
+   "object_type": "zone_protection_profile",
+   "description": "Enabling Packet Based Attack Protection prevents malicious actors from using packets to deliver attacks and malware by blocking suspicious packets based on the settings you configure in the Zone Protection profile."
+  },
+  {
+   "id": 89,
+   "name": "Checking for certificate expiration is disabled.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "device_setup_general",
+   "description": "Enabling the firewall to check for certificate expiration allows the firewall to generate a warning message when on-box certificates approach their expiration date."
+  },
+  {
+   "id": 90,
+   "name": "The device does not have a unique Hostname.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_general",
+   "description": "A unique hostname enables administrators to easily identify the device they are managing."
+  },
+  {
+   "id": 91,
+   "name": "The Login Banner is not configured.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_general",
+   "description": "Some regulated environments require a Login Banner and will encounter issues in an audit if there is no banner. A banner can communicate information to administrators and force them to acknowledge that information."
+  },
+  {
+   "id": 92,
+   "name": "Administrators do not have an Authentication Profile that enables external authentication services.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_authentication",
+   "description": "External authentication keeps all authentication requests in one centrally managed place for easier management and uses a standard authentication process that includes added services, tracking, SSO, etc., and support multi-factor authentication. Having one or two local accounts ensures that if external authentication fails, you can still access the device using local authentication."
+  },
+  {
+   "id": 94,
+   "name": "The timeout value for logging out inactive administrators is too high.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_authentication",
+   "description": "An idle administrator session can allow an unauthorized user to access the firewall. Administrator firewall sessions should be open and active only when an administrator is actively working on the firewall."
+  },
+  {
+   "id": 95,
+   "name": "The number of failed login attempts allowed to authenticate administrators is higher than five.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_authentication",
+   "description": "Setting the number of failed login attempts to a maximum of five (but not to zero) allows users who mistype their login to try again a reasonable number of times without allowing attackers to make continuous login attempts. Be sure to also set a Lockout Time to enforce if the number of failed logins reaches the \"Failed Attempts\" settiing."
+  },
+  {
+   "id": 96,
+   "name": "The amount of time to lock out administrators whose login attempts reach the Failed Attempts limit is set to less than 30 minutes.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_authentication",
+   "description": "Setting the lockout time for administrators whose failed login attempts reach the \"Failed Attempts\" limit to more than 30 minutes prevents continuous login attempts from a malicious actor. (A value of 0 minutes locks out the administrator until another administrator manually unlocks the account.)"
+  },
+  {
+   "id": 97,
+   "name": "Creating a System log entry when the packet processing load on the dataplane is at 100% is disabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_logging_reporting",
+   "description": "Creating a System log when the dataplane processing load reaches 100% enables administrators to investigate and identify the cause of high CPU utilization. High CPU loads can cause operational degradation because the CPU doesn't have enough cycles to process all the packets."
+  },
+  {
+   "id": 98,
+   "name": "Buffered Log Forwarding for firewalls is disabled on Panorama.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_logging_reporting",
+   "description": "Enabling firewalls to buffer logs if they lose connectivity with Panorama ensures that when the connection comes back up, the logs are forwarded to Panorama (assuming enough log capacity in the firewall buffers; if capacity is insufficient, only the logs the firewall was able to buffer are forwarded)."
+  },
+  {
+   "id": 100,
+   "name": "The Permitted IP Addresses list on the management interface of the firewall should be used to prevent access from unauthorized sources.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_management_interface",
+   "description": "Enabling Permitted IP Addresses and adding specific IP addresses limits management interface access to only those IP addresses and subnets. This denies access to addresses that are not on the list and reduces the attack surface. If the management IP address is a public address, it is especially important to implement least privilege access by restricting access to the management interface. Alternatively, you can accomplish the same goal using a dedicated management network or strict Security policy rules to control access."
+  },
+  {
+   "id": 101,
+   "name": "Update the Permitted IP Addresses list on the management interface of the firewall to prevent access from unauthorized sources.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "device_setup_management_interface",
+   "description": "Enabling Permitted IP Addresses and adding specific IP addresses limits management interface access to only those IP addresses and subnets. This denies access to addresses that are not on the list and reduces the attack surface. If the management IP address is a public address, it is especially important to implement least privilege access by restricting access to the management interface. Alternatively, you can accomplish the same goal using a dedicated management network or strict Security policy rules to control access."
+  },
+  {
+   "id": 102,
+   "name": "Administrative management interface services should not allow unencrypted protocols like HTTP and Telnet.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_management_interface",
+   "description": "Require using SSH and/or HTTPS for Administrative Management Services so that management credentials and traffic are encrypted. Do not use telnet or HTTP."
+  },
+  {
+   "id": 103,
+   "name": "Requirements for Minimum Password Complexity should be enabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_minimum_password_complexity",
+   "description": "Complex passwords are more difficult to brute force attack than simple passwords."
+  },
+  {
+   "id": 104,
+   "name": "Verifying the identity of the update server should be enabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_services",
+   "description": "Enabling the firewall to verify the update server's identity helps to secure communication between devices and the update server by ensuring that the update server has an SSL certificate signed by a trusted authority."
+  },
+  {
+   "id": 105,
+   "name": "No NTP server address is configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_services",
+   "description": "Configuring primary and secondary NTP servers keeps the firewall's clock synchronized with the NTP server clock. When all network firewalls and Panorama use NTP, all have synchronized clocks, so scheduled jobs run as expected and timestamps can help identify the root cause of various issues that involve multiple devices."
+  },
+  {
+   "id": 109,
+   "name": "The WildFire file forwarding size limit for PE files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "The higher file size limit enables the firewall to send larger PE files to WIldFire for inspection to identify threats, including zero-day threats, in PE files."
+  },
+  {
+   "id": 110,
+   "name": "The WildFire file forwarding size limit for APK files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the APK file forwarding size limit to 10MB ensures that APK files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 111,
+   "name": "The WildFire file forwarding size limit for PDF files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the PDF file forwarding size limit to 1 MB in PAN-OS 8.1 and earlier and 3,072 KB in PAN-OS 9.0 and later ensures that PDF files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 112,
+   "name": "The WildFire file forwarding size limit for Microsoft Office files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the Microsoft Office file forwarding size limit to 2,000 KB in PAN-OS 8.1 and earlier and 16,384 KB in PAN-OS 9.0 and later ensures that Microsoft Office files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 113,
+   "name": "The WildFire file forwarding size limit for JAR files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the JAR file forwarding size limit to 5 MB ensures that JAR files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 114,
+   "name": "The WildFire file forwarding size limit for flash files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the flash file forwarding size limit to 5 MB ensures that files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 115,
+   "name": "The WildFire file forwarding size limit for Mac OS X files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "The higher file size limit enables the firewall to send larger MAC OS X files to WIldFire for inspection to identify threats, including zero-day threats, in MAC OS X files."
+  },
+  {
+   "id": 117,
+   "name": "WildFire \"General Settings\" should be configured to \"Report Grayware Files\".",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Enable \"Report Grayware Files\" (Device > Setup > WildFire > General Settings) to log details such as session information, behavioral summary, network activity, host activity, and more to help with analytics."
+  },
+  {
+   "id": 119,
+   "name": "Forward Samples for Analysis to a regional Wildfire cloud domain based on device timezone.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_general",
+   "description": "The firewall can forward unknown samples to the WildFire global cloud (wildfire.paloaltonetworks.com) or to one of three regional WildFire clouds that Palo Alto Networks owns and maintains (the EU Cloud is eu.wildfire.paloaltonetworks.com, the Japan cloud is jp.wildfire.paloaltonetworks.com, and the Singapore cloud is sg.wildfire.paloaltonetworks.com). Configure your firewall to submit samples for WildFire analysis in the region where the firewall is located (Device > Setup > WildFire > General Settings). This ensures that the data and samples sent from the firewall to the wildfire cloud is in the same region and adheres to the data privacy and/or compliance standards specific to that region."
+  },
+  {
+   "id": 120,
+   "name": "Rematching sessions after committing a Security policy rule change should be enabled.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session",
+   "description": "Rematching sessions to apply newly configured and committed Security policy rules to existing active sessions ensures sessions are not accidentally dropped because they no longer match a Security policy rule or because they now match a rule with the action Deny. Rematching sessions enables the firewall to match existing sessions to new or changed rules so that they are handled the way you intend to handle them."
+  },
+  {
+   "id": 121,
+   "name": "Accelerated Aging should be enabled in the Session Settings.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session",
+   "description": "Enabling Accelerated Aging frees session table space faster when the session table fills to the configured aging threshold. This frees session table space for new sessions."
+  },
+  {
+   "id": 122,
+   "name": "The Session Timeouts \"Default\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving sessions open for protocols that aren't well known or well established. For internal software or application traffic that requires a longer timeout value, create a custom application and set a custom timeout value. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 123,
+   "name": "The Session Timeouts \"Discard Default\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving sessions open for too long after the firewall denies them due to Security policy rules. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 124,
+   "name": "The Session Timeouts \"Discard TCP\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving TCP sessions open for too long after the firewall denies them due to Security policy rules. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 125,
+   "name": "The Session Timeouts \"Discard UDP\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving UDP sessions open for too long after the firewall denies them due to Security policy rules. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 126,
+   "name": "The Session Timeouts \"ICMP\" setting should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving ICMP sessions open. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 127,
+   "name": "The Session Timeouts \"Scan\" setting should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving inactive sessions open and consuming firewall resources. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 128,
+   "name": "The Session Timeouts \"TCP\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving TCP sessions open too long and consuming firewall resources or closing sessions too soon. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 129,
+   "name": "The Session Timeouts \"TCP handshake\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against a long interval between the SYN-ACK and subsequent ACK consuming firewall resources, and against not providing enough time to receive the ACK and denying the session. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 130,
+   "name": "The Session Timeouts \"TCP init\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against a long interval between the SYN and SYN-ACK consuming firewall resources, and against not providing enough time to receive the SYN-ACK and denying the session. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 131,
+   "name": "The Session Timeouts \"TCP Half Closed\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against a TCP session remaining half open too long and consuming firewall resources unnecessarily. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 132,
+   "name": "The Session Timeouts \"TCP Wait Time\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against TCP sessions consuming more firewall resources (high timeout value) and against TCP sessions closing before data transmission is complete (low timeout value). Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 133,
+   "name": "The Session Timeouts \"Unverified RST\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It helps to protect against DoS attacks where the attack attempts to disrupt existing sessions by sending random RST packets to the firewall. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 134,
+   "name": "The Session Timeouts \"UDP\" should be set to the default timeout value.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_session-timeouts",
+   "description": "The default value is the optimal timeout value. It protects against leaving UDP sessions open too long and consuming firewall resources or closing sessions too soon. Do not change the default value unless you have a good business reason."
+  },
+  {
+   "id": 136,
+   "name": "Configuration synchronization for HA is disabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Synchronizing the configuration settings between HA peers ensures that the peers always have the same configuration and process traffic the same way. If the active device goes down, the secondary or passive device has the same configuration, so the peers process traffic the same way."
+  },
+  {
+   "id": 138,
+   "name": "No backup to the HA1 peer IP address is configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Configuring a backup IP address for the HA1 peer ensures that if the primary link (\"Peer HA1 IP Address\") fails, the backup link keeps the firewalls in sync and up to date."
+  },
+  {
+   "id": 139,
+   "name": "The Passive Link State setting for Active/Passive HA pairs is not set to Auto.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Setting the Passive Link State to \"Auto\" when the firewall has no configured layer 2 interfaces enables links that have physical connectivity to remain physically up, but in a disabled state. This reduces the convergence time during a failover because no time is spent bringing up the links."
+  },
+  {
+   "id": 141,
+   "name": "Heartbeat Backup is disabled for the in-band dataplane port used for the HA1 and HA1 Backup links.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Enabling \"Heartbeat Backup\" when you use dataplane ports for HA1 and HA1 Backup links provides a backup path for heartbeat and hello messages. This ensures that if the primary path goes down, heartbeat and hello messages are still received. This also helps to prevent split brain conditions."
+  },
+  {
+   "id": 142,
+   "name": "The HA Timer Settings value is not set to \"Recommended\".",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "The \"Recommended\" HA Timer Setting option provides preset timing values for most general failover conditions."
+  },
+  {
+   "id": 143,
+   "name": "Encryption for HA1 link communications is disabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "HA1 controls communication between the HA peers to ensure they are in sync, available, and exchange HA state information. Encrypt traffic between HA peers that traverses network devices that can inspect, process, or capture traffic to deny them visibility into the HA traffic."
+  },
+  {
+   "id": 144,
+   "name": "Session Synchronization for the HA2 link is disabled.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Enabling session synchronization between HA peers synchronizes session information with the passive HA device. When a failover occurs, the passive device becomes the active device and because the session is synchronized, the newly active device has the necessary information to match packets to the session and continue the session without interruption."
+  },
+  {
+   "id": 145,
+   "name": "The Keep-alive for HA2 should be enabled.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Enabling the HA2 Keep-alive ensures that the firewall knows when the HA2 connection to the HA peer is down. The firewall generates a Critical severity log entry and takes the configured action (Log Only or Split Datapath)."
+  },
+  {
+   "id": 147,
+   "name": "The HA3 interface is not configured for Active/Active HA.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "In Active/Active HA configurations, the HA peers need to forward packets to each other for session setup and asymmetric packet flows."
+  },
+  {
+   "id": 148,
+   "name": "The HA Session Owner Selection is not set to First packet for Active/Active HA.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Enabling the firewall that receives the first packet of a session to own the session helps helps reduce traffic across the HA3 link and helps distribute the dataplane load across the peers."
+  },
+  {
+   "id": 149,
+   "name": "Both HA link monitoring and path monitoring are disabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Enabling Path Monitoring or Link Monitoring enables the firewall to failover to a backup if a path or link fails. Failing over maintains traffic continuity if a path or link fails."
+  },
+  {
+   "id": 150,
+   "name": "HA link monitoring is enabled but no Link Group is configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Configuring a Link Group with multiple links ensures that if one links fails, the other links keep the connection up, and enables you to decide how to failover traffic (failover if any link in the group fails or failover only if all links in the group fail). This helps ensure traffic continuity during failure events."
+  },
+  {
+   "id": 151,
+   "name": "HA path monitoring is enabled but no Path Group is configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "high_availability",
+   "description": "Configuring a Path Group with multiple paths ensures that if one path fails, the other paths keep the connection up, and enables you to decide how to failover traffic (failover if any path in the group fails or failover only if all paths in the group fail). This helps ensure traffic continuity during failure events."
+  },
+  {
+   "id": 154,
+   "name": "Configure Custom Admin Roles.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "admin_role",
+   "description": "Admin roles customize access in a granular fashion so administrators can access only what they need for administrative purposes."
+  },
+  {
+   "id": 155,
+   "name": "An Authentication profile which includes an authentication method external to the firewall or Panorama should be used.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "authentication_profile",
+   "description": "Configure a non-local Authentication profile such as LDAP, Kerberos, RADIUS, etc., for administrator login accounts to verify authentication externally, using well-known protocols that include events and logs for troubleshooting and historical reference. Non-local authentication enables monitoring all events on one authentication server, which makes management easier. Enable no more than two administrative accounts for local database authentication as a backup in case non-local authentication fails. Configure management Authentication profiles using RADIUS or SAML (Device > Setup > Management > Authentication Settings). If you define administrators (Device > Administrators), use Multi-Factor Authentication. If you use RADIUS or SAML as the first factor, enable two-factor authentication directly or enable Okta, PingID, Duo v2, or RSA as the second factor using APIs. If you use LDAP, Kerberos, TACACS+, or local authentication as the first factor, use Okta, PingID, Duo v2, or RSA, as the second factor."
+  },
+  {
+   "id": 157,
+   "name": "Failed Attempts in Authentication Profile Not Set",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "authentication_profile",
+   "description": "Setting a low number of Failed Attempts (Device > Setup > Management > Authentication Settings) allows users who make typing errors to retry the login a reasonable number of times while preventing malicious systems from trying to access the firewall with repeated login attempts (brute force) until they gain access."
+  },
+  {
+   "id": 158,
+   "name": "Configure an Authentication profile Allow List.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "authentication_profile",
+   "description": "The allow list specifies users or user groups who can authenticate, limiting access to necessary users."
+  },
+  {
+   "id": 159,
+   "name": "A secondary authentication sequence should be configured.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "authentication_sequence",
+   "description": "Adding secondary and tertiary (or more) authentication methods ensures access availability if one or more methods fail."
+  },
+  {
+   "id": 164,
+   "name": "Client probing for User-ID is enabled.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "user_id",
+   "description": "Disabling client probing ensures that misconfiguration doesn't transmit sensitive information outside of your network where it's exposed to attackers. Use more secure methods of obtaining User-ID information such as domain controllers, integrations with Syslog or the XML API, and configuring Authentication policy and Authentication Portal to ensure that you only allow access to authorized users without exposing information. If you must enable client probing, do not enable it on external untrusted interfaces."
+  },
+  {
+   "id": 165,
+   "name": "The User-ID Timeout is disabled or the timeout value is not set.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "user_id",
+   "description": "Enabling and configuring a User-ID timeout value ensures that when the firewall receives user-to-IP-address mapping information, the firewall timestamps the mapping information, and when the timeout value expires, the firewall removes the mapping. If mapping information remains valid on the firewall too long and another user obtains or spoofs the IP address, the user receives the access privileges assigned to the last user who had that IP address."
+  },
+  {
+   "id": 172,
+   "name": "The Authentication Portal Mode setting is not set to Redirect.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "authentication_portal",
+   "description": "Redirct mode provides a cleaner end-user experience than Transparent mode, which shows certificate errors even if the destination is secure, and allows session cookies that make browsing for websites seamless because Redirect mode doesn't require remapping each when the timeouts expire."
+  },
+  {
+   "id": 173,
+   "name": "The Authentication Portal session timeout limit in Redirect mode should be less than or equal to 480 minutes.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "authentication_portal",
+   "description": "Set the session cookie timeout (Device > User Identification > Authentication Portal Settings > Session Cookie in PAN-OS 10.0 and later and Device > User Identification > Captive Portal Settings > Session Cookie in PAN-OS 9.1 and earlier) to a value that doesn't prompt users to login multiple times during a session to promote a good user experience, but that isn't so long that it leads to stale user mapping entries in cookies."
+  },
+  {
+   "id": 174,
+   "name": "Authentication Portal SSL/TLS Service Not Set to Recommended",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "authentication_portal",
+   "description": "To provide the strongest security against SSL/TLS protocol vulnerabilities, for Captive Portal, set the SSL/TLS Service Profile (Device > Certificate Management > SSL/TLS Service Profile) \"Min Version\" to \"TLSv1.2\" and the \"Max Version\" to \"Max\"."
+  },
+  {
+   "id": 177,
+   "name": "Informational and/or low severity System logs are not forwarded to an external device.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "log_settings_system",
+   "description": "Firewall and Panorama system logs provide important information about system health, features, performance, and more. Forward the logs for all severities to an external device for historical reference and running analytics."
+  },
+  {
+   "id": 178,
+   "name": "Medium, high and/or critical severity System logs are not forwarded to an external device.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "log_settings_system",
+   "description": "Firewall and Panorama system logs provide important information about system health, features, performance, and more. Forward the logs for all severities to an external device for historical reference and running analytics."
+  },
+  {
+   "id": 182,
+   "name": "The settings for forwarding all Configuration logs are not configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "log_settings_config",
+   "description": "Ensure that you forward all Configuration logs to appropriate external storage because Configuration logs provide insight about configuration changes, which administrator made the changes, the change time, etc. Configuration logs help troubleshoot performance, device management and device health issues."
+  },
+  {
+   "id": 183,
+   "name": "SNMP protocol set to insecure version.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "snmp_trap_server_profile",
+   "description": "SNMPv3 is more secure than SNMPv2c. SNMPv3 enables more granular access control for system statistics and uses more secure authentication than SNMPv2c. This keeps network connections more secure and enables least privilege access for SNMP administrators."
+  },
+  {
+   "id": 184,
+   "name": "The SNMPv2c Trap community string is set to the default value.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "snmp_trap_server_profile",
+   "description": "Unique community strings are more secure than default Community strings. Unique community strings also help avoid community string value conflicts if you use multiple SNMP services."
+  },
+  {
+   "id": 185,
+   "name": "The transport protocol for the Syslog Server Profile is not set to SSL.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "syslog_server_profile",
+   "description": "Using SSL ensures that data sent to a syslog server is encrypted, secure, and can't be read in transit."
+  },
+  {
+   "id": 186,
+   "name": "The LDAP Server profile setting \"Require SSL/TLS Secured Connection\" should be enabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "ldap_server_profile",
+   "description": "Leave the \"Require SSL/TLS secured connection option enabled to ensure that the LDAP server connection uses secure protocols. If you disable the SSL/TLS secured connection option, the initial connection to the server is plaintext instead of encrypted."
+  },
+  {
+   "id": 187,
+   "name": "The LDAP Server profile setting \"Verify Server Certificate for SSL sessions\" should be enabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "ldap_server_profile",
+   "description": "Verifying server certificates for SSL sessions increases security by ensuring that the LDAP server presents a valid, trusted certificate for the session and that the certificate name matches the hostname of the LDAP server as specified in the LDAP Server profile. If the LDAP server doesn't present a valid certificate, the connection fails."
+  },
+  {
+   "id": 188,
+   "name": "Dynamic Updates for Antivirus content should be set to \"download-and-install\" hourly, and a \"threshold\" should not be configured.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "Downloading and installing Antivirus content Dynamic Updates ensures that the firewall receives the newest protection against known viruses. Downloading and installing Antivirus content updates automatically ensures that the newest protections are applied as soon as possible. Disabling the delay Threshold ensures that the firewall doesn't wait after downloading the latest Antivirus content updates and installs them immediately."
+  },
+  {
+   "id": 189,
+   "name": "Dynamic Updates for Applications and Threats content should be set \"download-and-install\" at a frequency of daily or less, and a configured \"threshold\" should not exceed 48 hours.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "Downloading and installing Applications and Threats content Dynamic Updates ensures that the firewall receives the newest threat and application signatures. Downloading and installing Applications and Threates content updates automatically ensures that the newest Threat protections are applied as soon as possible. Setting the delay Threshold to less than 48 hours ensures that the firewall installs the updates in a reasonable amount of time."
+  },
+  {
+   "id": 190,
+   "name": "Dynamic Updates for WildFire content should be set to \"download-and-install\" at a frequency of \"Every Minute\" for Panorama and \"Real-time\" for NGFWs.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "Downloading and installing WildFire content Dynamic Updates ensures that the firewall receives the newest protections against threats in transmitted files. When you download WildFire content updates in real-time, you ensure that whenever an update is available, you receive it immediately and the firewall installs it immediately. If you run PAN-OS 9.1 or earlier, be sure to set the Action to \"download-and-install\" or you will have to install the update manually."
+  },
+  {
+   "id": 191,
+   "name": "If the HA configuration has \"Sync To Peer\" enabled for content updates, set \"Minutes Past Hour\" differently for each peer.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "For HA pairs with both the primary and secondary device configured to \"Sync To Peer\" for Antivirus content updates (Device > Dynamic Updates), schedule the \"download-and-install\" Action a few minutes apart in the \"Minutes Past Hour\" field. If both devices in an HA pair download and install updates and attempt to sync to the peer at the same time, a failure may occur. However, separating the actions by a few minutes enables each device in the HA pair to detect the most current version on the devices and sync to that version smoothly."
+  },
+  {
+   "id": 192,
+   "name": "If the HA configuration has \"Sync To Peer\" enabled for content updates, set \"Minutes Past Hour\" differently for each peer.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "For HA pairs with both the primary and secondary device configured to \"Sync To Peer\" for Applications and Threats content updates (Device > Dynamic Updates), schedule the \"download-and-install\" Action a few minutes apart in the \"Minutes Past Hour\" field. If both devices in an HA pair download and install updates and attempt to sync to the peer at the same time, a failure may occur. However, separating the actions by a few minutes enables each device in the HA pair to detect the most current version on the devices and sync to that version smoothly."
+  },
+  {
+   "id": 194,
+   "name": "Dynamic updates for GlobalProtect Data File content are not set properly.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "Downloading and installing GlobalProtect Data File content updates hourly ensures that vendor-specific HIP information is current and accurate, which reduces false positives."
+  },
+  {
+   "id": 195,
+   "name": "Dynamic updates for GlobalProtect Clientless VPN content are not set properly.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "dynamic_updates",
+   "description": "Downloading and installing GlobalProtect Clientless VPN content updates hourly ensures that new and updated application signatures which enable Clientless VPN access to common web applications from the GlobalProtect Portal are available in a timely manner."
+  },
+  {
+   "id": 196,
+   "name": "No visibility into URL categories.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "Gaining visibility into traffic is critical in case you need to investigate an event or evaluate whether to allow access to a URL category. Lack of visibility decreases your security posture and makes it more difficult to investigate events."
+  },
+  {
+   "id": 197,
+   "name": "Sharing Telemetry data is disabled.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_telemetry",
+   "description": "Enabling the firewall to collect and forward telemetry data, including data on threat prevention and device health and performance, helps Palo Alto Networks improve threat prevention, reduce noisy signatures, and enhance application and URL classifications, which benefits all customers. Enable all telemetry categories to ensure that all data is included."
+  },
+  {
+   "id": 199,
+   "name": "The LDAP Server profile should contain 2 or more LDAP servers for redundancy.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "ldap_server_profile",
+   "description": "Configure at least two LDAP servers in the LDAP Server profile so that if a connection goes down, you have a redundant connection as a backup."
+  },
+  {
+   "id": 200,
+   "name": "The Vulnerability Protection profile settings for \"low\" and \"informational\" severity events should be set to \"default\".",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "vulnerability_protection_profile",
+   "description": "The \"default\" setting takes the default action defined by Palo Alto Networks experts to respond to detected events. Sometimes the default setting is not strict enough for best security for medium, high, and critical severity events, but the default setting helps maintain application availability for low and informational events when the Palo Alto Networks experts determine that it is safe to allow or alert on the traffic instead of blocking it. You can create separate actions for low and informational events in the Vulnerability Protection profile, but if you treat them the same way, combine them in one action to simplify the profile."
+  },
+  {
+   "id": 201,
+   "name": "The Anti-Spyware profile settings for \"low\" and \"informational\" severity events should be set to \"default\".",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "The \"default\" setting takes the default action defined by Palo Alto Networks experts to respond to detected events. Sometimes the default setting is not strict enough for best security for medium, high, and critical severity events, but the default setting helps maintain application availability for low and informational events when the Palo Alto Networks experts determine that it is safe to allow or alert on the traffic instead of blocking it."
+  },
+  {
+   "id": 204,
+   "name": "The WildFire file forwarding size limit for archive files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the archive file forwarding size limit to 10 MB in PAN-OS and 8.1 and earlier and to 50 MB in PAN-OS 9.0 and later ensures that files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 205,
+   "name": "The WildFire file forwarding size limit for Linux files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the Linux file forwarding size limit to 10 MB in PAN-OS 8.1 and earlier and to 50 MB in PAN-OS 9.0 and later ensures that files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 206,
+   "name": "Only use the \"reset-client\" or \"reset-server\" Action in Antivirus profiles when required.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Use the \"reset-client\" or the \"reset-server\" Action only if the nature of the application, software, or your business requires it."
+  },
+  {
+   "id": 207,
+   "name": "User Credential Submission in the URL Filtering profile should be blocked for known malicious URL categories.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent users from submitting credentials to known malicious sites, configure the URL Filtering profile to block User Credential Submission to all known malicious URL categories: command-and-control, grayware, malware, phishing, and ransomware."
+  },
+  {
+   "id": 208,
+   "name": "A Security policy rule with the Action set to Allow should specify applications (App-IDs).",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Specifying applications (App-IDs) in Security policy allow rules enables you to define the application traffic that you explicitly allow on your network. The traffic that you don't explicitly allow on your network is implicitly denied, which protects you from potentially malicious traffic from applications that your business doesn't use or want on its network. Create your own App-IDs for internal or custom applications so that you can control and inspect them in Security policy."
+  },
+  {
+   "id": 211,
+   "name": "Set the timeout value so that it provides sufficient time for users to access and use the resource under normal conditions. For perimeter resources, set a timeout value of up to 480 minutes. For Data Center resources and critical systems, set a lower timeout value such as 60 minutes.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "authentication_rules",
+   "description": "Setting an appropriate timeout value for Authentication challenges ensures users can access resources while maintaining security. When the timeout elapses, the firewall reissues the challenge."
+  },
+  {
+   "id": 212,
+   "name": "Packet Buffer Protection should be enabled in the zone.",
+   "severity": "Critical",
+   "section": "network",
+   "object_type": "zone",
+   "description": "Packet Buffer Protection (PBP) defends firewall ingress zones from single session denial-of-service (DoS) attacks that can consume the firewall's packet buffer and cause legitimate traffic to drop because the DoS attack consumes the required resources. PBP also protects you against misconfigured internal devices, faulty NIC adapters, and insider threats. When global PBP Random Early Detection (RED) is not sufficient, per-zone PBP can discard or block offending traffic to mitigate attacks."
+  },
+  {
+   "id": 213,
+   "name": "Global Packet Buffer Protection and its thresholds should be enabled in the Session Settings.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "device_setup_session",
+   "description": "Global Packet Buffer Protection (PBP) protects the firewall buffers from single-session denial-of-service (DoS) attacks, from attacks from a single source IP address, and from source IP addresses that create many small sessions that combine to consume packet buffers. Global PBP applies Random Early Detection (RED) to drop some of the traffic, which prevents these types of DoS attacks from consuming the firewall packet buffer resources and denying service to legitimate users. However, global PBP does not discard or block offending traffic. All thresholds must contain non-zero values because the value \"0\" means the threshold or timer is not applied. (In addition to global PBP, enabling per-zone PBP protects firewall buffers on a per-ingress-zone-basis and can discard or block offending traffic.) PBP also protects you against misconfigured internal devices, faulty NIC adapters, and insider threats."
+  },
+  {
+   "id": 214,
+   "name": "Forwarding segments that exceed the TCP out-of-order queue should be disabled.",
+   "severity": "Critical",
+   "section": "device",
+   "object_type": "device_setup_session",
+   "description": "Until the firewall receives all of the packets in order, it can’t send them from the TCP layer to the Application layer, so forwarding segments that exceed the TCP out-of-order queue limit can cause extra delay and degrade firewall performance."
+  },
+  {
+   "id": 223,
+   "name": "Client communication with secure custom certificates is not configured.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_secure_communication",
+   "description": "Using custom SCEP certifcates from your PKI or local certificates for client communication enables you to establish a unique trust chain that validates and establishes secure inter-device SSL communication."
+  },
+  {
+   "id": 227,
+   "name": "User Credential Detection should be configured as 'Use Domain Credential Filter' in a URL Filtering Profile.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "Phishing sites are sites that attackers disguise as legitimate websites with the aim to steal user information, especially user credentials that provide corporate domain access. Identify and prevent phishing attacks by controlling sites to which users can submit corporate credentials, based on the site’s URL category. This enables you to block users from submitting domain credentials to untrusted sites while allowing users to submit credentials to corporate and sanctioned sites."
+  },
+  {
+   "id": 228,
+   "name": "The Interface Management Profile configuration should not allow unencrypted protocols like HTTP and Telnet.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "interface_management_profile",
+   "description": "HTTP and Telnet use plaintext and are not as secure as other services because administrative credentials are not encrypted. For management access through a data port, require SSH and/or HTTPS only."
+  },
+  {
+   "id": 231,
+   "name": "A Certificate profile should be configured for User-ID.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "user_id",
+   "description": "Creating a certificate and a Certificate profile for User-ID ensures secure communication between the firewall and User-ID or Terminal Server agents. The certificate profile ensures that both ends of the connection trust each other to establish secure communication."
+  },
+  {
+   "id": 233,
+   "name": "The RADIUS server authentication protocol should use EAP to secure RADIUS authentication traffic.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "radius_server_profile",
+   "description": "EAP ensures that usernames and passwords are securely transmitted between the firewall and radius server for authentication."
+  },
+  {
+   "id": 234,
+   "name": "The TACACS+ server authentication protocol should use CHAP as the Authentication Protocol.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "tacplus_server_profile",
+   "description": "CHAP is a more secure authentication protocol than Password Authentication Protocol (PAP) for securely transmitting authentication data between the firewall and the TACACS+ server."
+  },
+  {
+   "id": 241,
+   "name": "A Security policy rule should be configured to block the QUIC application if SSL decryption is in use.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Blocking QUIC traffic forces the browser to fall back to TLS. This enables the firewall to decrypt and inspect the traffic for threats. To decrypt traffic, you must configure a Forward Proxy decryption policy to match the traffic. To inspect the traffic that matches a Security policy rule, the Forward Proxy decryption policy rule must match the same traffic that you allow in the Security policy rule."
+  },
+  {
+   "id": 242,
+   "name": "The Policy Rule Hit Count for Security policy rules should be enabled.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_policy_rulebase",
+   "description": "Enable Policy Rule Hit Count to track how often traffic matches your Security policy rules. Enabling the Policy Rule Hit Count enables the firewall to track and you to view the total Hit Count for traffic matches against each rule and the date and time when the rule was Created, Modified, First Hit, and Last Hit. This information helps you optimize and maintain your Security policy rulebase and track and control new applications."
+  },
+  {
+   "id": 243,
+   "name": "The API Key Lifetime value in Authentication Settings does not expire.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_authentication",
+   "description": "Rotating API keys regularly protects against compromised keys and reduces the effects of accidental exposure. To ensure that the firewall rotates your API keys frequently and that each regenerated key is unique, specify a validity period within a range of 1—525600 minutes. Refer to the audit and compliance policies for your enterprise to determine how you should specify the lifetime for which your API keys are valid."
+  },
+  {
+   "id": 245,
+   "name": "The Minimum FQDN Refresh Time should be set to 30 seconds or less.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_services",
+   "description": "Setting the FQDN Refresh Time equal to or lower than 30 seconds ensures that FQDNs aren't outdated."
+  },
+  {
+   "id": 246,
+   "name": "The GRE tunnel Keep Alive function is disabled.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "gre_tunnel",
+   "description": "The GRE Tunnel Keep Alive function monitors the tunnel, prevents disconnection due to inactivity, and ensures tunnel stability by checking that the peer is up. When the Keep Alive function receives no replies for the configured number of retries, the firewall knows the peer is down and takes down the GRE tunnel."
+  },
+  {
+   "id": 247,
+   "name": "Security Options are disabled in the Tunnel Inspection policy rule.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "tunnel_inspection",
+   "description": "The Security Options in Tunnel Inspection policy rules enable you to write separate Security policy rules to control the tunnel and the tunneled content because the tunnel and the tunneled content will be transmitted in separate sessions. This enables you to apply appropriate security to the tunneled traffic. The Tunnel Source Zone is the tunneled content source zone and the Tunnel Destination Zone is the tunneled content destination zone. You must configure the zones for the tunneled content as Tunnel Zones (Network > Zones > Type)."
+  },
+  {
+   "id": 249,
+   "name": "The Security policy rulebase should have a rule that allows new App-IDs from dynamic content updates.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "A Security policy allow rule for new App-IDs from dynamic content updates prevents business disruptions due to the introduction of new App-IDs that match traffic previously identified and allowed by a different App-ID in Security policy. The new App-ID rule ensures that business critical traffic remains unaffected while you assess how to handle the new App-IDs."
+  },
+  {
+   "id": 251,
+   "name": "The WildFire file forwarding size limit for script files should be set to the recommended value, based on PAN-OS version.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "Setting the script file forwarding size limit to 10 MB in PAN-OS and 8.1 and earlier and to 50 MB in PAN-OS 9.0 and later ensures that files don't consume too much WildFire disk buffer space and limit the number of files the firewall can forward to WildFire for inspection."
+  },
+  {
+   "id": 253,
+   "name": "DNS cloud security should be enabled in the Anti-Spyware profile's DNS Policies tab, and packet capture and DNS sinkhole should be enabled for DNS cloud security.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "Threats in DNS traffic are a common method for attackers to gain access to your network and install command-and-control malware on endpoints. The DNS Security subscription enables users to access real-time protections using advanced predictive analytics. Techniques such as DGA/DNS tunneling detection and machine learning proactively identify threats hidden within DNS traffic and share them through an infinitely scalable cloud service. Because the DNS signatures and protections are stored in a cloud-based architecture, you can access the full database of ever-expanding signatures that are generated using a multitude of data sources. This enables you to defend against an array of threats that use DNS in real-time to deliver malware from newly generated malicious domains. Ensure that in each Anti-spyware profile, in DNS Policies Tab, you select DNS Security as a signature source and set the action to sinkhole, with packet capture enabled for single-packet. This check applies when DNS service license is active."
+  },
+  {
+   "id": 259,
+   "name": "The Log Forwarding profile should be configured to forward URL logs.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "log_forwarding_profile",
+   "description": "Configure Log Forwarding profiles to forward low, medium, high, and critical severity URL logs to external long-term log storage (Panorama, Cortex Data Lake, or syslog) so that you can analyze potential threats over time."
+  },
+  {
+   "id": 260,
+   "name": "The Log Forwarding profile should be configured to forward Authentication logs.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "log_forwarding_profile",
+   "description": "Configure Log Forwarding profiles to forward auth logs to external long-term log storage (Panorama, Cortex Data Lake, or syslog) so that you can analyze potential threats over time."
+  },
+  {
+   "id": 261,
+   "name": "A Security policy rule should be configured to block inbound traffic from known malicious IP addresses.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Before Security policy rules that explicitly allow and block traffic by application, block inbound traffic from IP addresses that Palo Alto Networks and trusted third-party sources have proven to be malicious. The built-in \"Palo Alto Networks - Known malicious IP addresses\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End forward the logs appropriately to track activity."
+  },
+  {
+   "id": 262,
+   "name": "A Security policy rule should be configured to block outbound traffic to known malicious IP addresses.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Before Security policy rules that explicitly allow and block traffic by application, block outbound traffic to IP addresses that Palo Alto Networks and trusted third-party sources have proven to be malicious. The built-in \"Palo Alto Networks - Known malicious IP addresses\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End forward the logs appropriately to track activity."
+  },
+  {
+   "id": 263,
+   "name": "A Security policy rule should be configured to block inbound traffic from known high risk IP addresses.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Before Security policy rules that explicitly allow and block traffic by application, block inbound traffic from IP addresses that Palo Alto Networks and trusted third-party sources have linked to malicious behavior. The built-in \"Palo Alto Networks - High risk IP addresses\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End forward the logs appropriately to track activity."
+  },
+  {
+   "id": 264,
+   "name": "A Security policy rule should be configured to block outbound traffic to known high-risk IP addresses.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Before Security policy rules that explicitly allow and block traffic by application, block outbound traffic to IP addresses that Palo Alto Networks and trusted third-party sources have linked to malicious behavior. The built-in \"Palo Alto Networks - High risk IP addresses\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End forward the logs appropriately to track activity."
+  },
+  {
+   "id": 267,
+   "name": "SSL Forward Proxy should use separate certificates for Forward Trust and Forward Untrust.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "certificate",
+   "description": "Generating separate certificates ensures that when a site does not meet minimum requirements for safety, the firewall presents a Block Page that warns users. This helps users to understand that the site isn't trusted, that they are being blocked by company policy, not a network issue, and there is no need to call IT to resolve the issue."
+  },
+  {
+   "id": 271,
+   "name": "The \"WildFire Inline ML Action\" for real-time detection decoders in the Antivirus profile's Action tab should be set to block detected threats.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Configure the WildFire Inline Machine Learning Action for decoders to block malicious threats that the WildFire Inline ML models detect in real time. Block (reset-both, drop, reset-client, or reset-server) all protocols (SMB, FTP, HTTP, HTTP2, SMTP, IMAP, and POP3) when threats are detected."
+  },
+  {
+   "id": 272,
+   "name": "The \"Action Setting\" for models on the WildFire Inline ML tab in the Antivirus profile should be enabled.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Configuring the \"enable\" action for all models makes the firewall take the action defined in the Antivirus profile's Action tab for Wildfire Inline ML Action on the traffic. This enables real-time, ML-based action when malicious traffic matches a model and strengthens your security posture."
+  },
+  {
+   "id": 273,
+   "name": "Update the URL Filtering profile's Inline ML action to \"block\" each Model.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "Set the \"Action\" for each \"Model\" to block to use local inline machine learning to protect against phishing and other threats."
+  },
+  {
+   "id": 334,
+   "name": "Enable Cloud inline Analysis in the Anti-spyware profile and set the action for each analysis engine to \"drop\", \"reset-both\", \"reset-client\" or \"reset-server\".",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "To protect users against zero-day threats, enable the series of ML-based detection engines in the Advanced Threat Prevention cloud that analyzes traffic for advanced C2 (command-and-control) and spyware threats in real-time."
+  },
+  {
+   "id": 340,
+   "name": "URL categories that present liability risk to businesses are not blocked.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent access to sites that may present potential business liabilities such as illegal downloads of software or other intellectual property, or violate child protection laws, configure the URL Filtering profile to block all such known categories, including abused-drugs, adult, copyright-infringement, extremism, gambling, peer-to-peer, questionable, and weapons."
+  },
+  {
+   "id": 341,
+   "name": "Update the URL Filtering profile to block the following potentially malicious URL categories: dynamic-dns, encrypted-dns, hacking, insufficient-content, newly-registered-domains, not-resolved, parked, proxy-avoidance-and-anonymizers, unknown, scanning-activity and unknown.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent access to potentially malicious sites, configure the URL Filtering profile to block all potentially malicious URL categories: dynamic-dns, encrypted-dns, hacking, insufficient-content, newly-registered-domains, not-resolved, parked, proxy-avoidance-and-anonymizers, unknown, scanning-activity and unknown."
+  },
+  {
+   "id": 344,
+   "name": "User Credential Submission in the URL Filtering profile is not blocked for categories that may present liability risk to businesses.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent users from submitting credentials to sites that may present liability risks, configure the URL Filtering profile to block User Credential Submission to potentially risky categories: abused-drugs, adult, copyright-infringement, extremism, gambling, peer-to-peer, questionable, and weapons."
+  },
+  {
+   "id": 345,
+   "name": "User Credential Submission in the URL Filtering profile is not blocked for categories that are potentially malicious.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "To prevent users from submitting credentials to potentially malicious sites, configure the URL Filtering profile to block User Credential Submission to all potentially malicious URL categories: dynamic-dns, hacking, insufficient-content, newly-registered-domains, not-resolved, parked, proxy-avoidance-and-anonymizers, and unknown."
+  },
+  {
+   "id": 346,
+   "name": "No visibility into user credential submissions to websites.",
+   "severity": "Informational",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "Gaining visibility into traffic is critical in case you need to investigate an event or evaluate whether to allow credential submission sites in a URL category. Lack of visibility decreases your security posture and makes it more difficult to investigate events."
+  },
+  {
+   "id": 347,
+   "name": "The WildFire real-time signature lookup is disabled or incorrectly configured to hold files until the firewall receives the latest antivirus signature.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Firewalls have a limited amount of memory, so they can store only a limited amount of data, including antivirus signatures. To ensure that WildFire receives the latest real-time antivirus signature before the firewall allows a file transfer, enable the firewall to hold the sample while WildFire analyzes it so the file isn't forwarded until the firewall has the proper antivirus signature to analyze the file. This prevents zero-day malware from compromising your network even if your enterprise is the first to see the malware and ensures that outdated antivirus signatures are updated before files are forwarded."
+  },
+  {
+   "id": 348,
+   "name": "Add a security rule to the rulebase with an Action of 'Deny' and an Application of Application Filter 'Gen AI Apps'. Place this rule below the rule allowing Sanctioned Generative AI applications.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Safe use of Generative AI applications requires that only sanctioned Gen AI apps are allowed to be interacted with by users."
+  },
+  {
+   "id": 350,
+   "name": "Add a Decryption Policy which uses a Decryption Profile following best practices.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "decryption_rulebase",
+   "description": "Encrypted traffic can not be thoroughly inspected, which introduces unnecessary security risks to your organization.  Use a Decryption Policy to allow firewalls to decrypt and then inspect all traffic which is not explicitly exempted from decryption due to internal or regulatory policies"
+  },
+  {
+   "id": 351,
+   "name": "Remove Applications from security rules with an 'Allow' action which are not explicitly the Application Filters 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', or are not included in those Application Filters to prevent unauthorized use of unsanctioned Gen AI applications.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Safe use of Generative AI applications requires that only sanctioned Gen AI apps are allowed to be interactive with by users."
+  },
+  {
+   "id": 352,
+   "name": "To avoid blocking Generative AI applications you have tagged as either 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps', remove them from rules with an action which is not 'Allow'.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Rather than explicitly blocking applications tagged to 'Sanctioned Gen AI apps' or 'Tolerated Gen AI apps' Application Filters, it is recommended you remove the applications in question from those Application Filters by untagging them before adding a rule to block them.  You should already have a rule in place to block unsanctioned Gen AI apps."
+  },
+  {
+   "id": 353,
+   "name": "Ensure that Source Users are included in the match criteria of security rules with an action of 'Allow', and application(s) which are included in the Application Filter 'Tolerated Gen AI apps'.",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Security rules allowing 'Tolerated Gen AI apps' should be limited to specific users and use cases. General use of Gen AI apps should be limited to those apps you classify as 'Sanctioned'"
+  },
+  {
+   "id": 354,
+   "name": "Ensure Data Filtering, or Data Loss Prevention (DLP) is enabled for security rules with an action of 'Allow' and application(s) which are included in the Application Filter 'Gen AI apps'.",
+   "severity": "Critical",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Safely enabling the use of Generative AI applications requires scanning of the Gen AI traffic with Data Loss Prevention (DLP) to ensure sensitive data is not shared outside your Organization."
+  },
+  {
+   "id": 357,
+   "name": "To prevent access to Generative AI sites which present significant data security risk, configure the URL Filtering profile to block the following URL categories: AI-code-assistant, AI-conversational-assistant, AI-data-and-workflow-optimizer, AI-meeting-assistant, AI-platform-service and AI-writing-assistant. It is important to only allow access to known and sanctioned Generative AI tools.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "url_filtering_profile",
+   "description": "Generative AI tools can pose significant data security risks including intellectual property theft, insecure code generation, supply chain attacks, loss of sensitive or private data, model poisoning, and phishing. Blocking unauthorized Generative AI URL categories helps protect your organization from these threats."
+  },
+  {
+   "id": 359,
+   "name": "Configure at least one AKE round to use a Key Encapsulation Mechanism (KEM) such as kyber-512, kyber-768, kyber-1024, bike-L1, bike-L3, bike-L5, frodokem, hqc, classic-mceliece, or ntruprime-sntrup761 instead of Diffie-Hellman groups 1-21.",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "ike_crypto_profiles",
+   "description": "Using a Key Encapsulation Mechanism (KEM) in IKE brings post-quantum security, performance improvements, modular integration, and stronger forward secrecy—all critical for securing future VPN and IPsec communications in a quantum-threat landscape."
+  },
+  {
+   "id": 360,
+   "name": "Enable Cloud inline Analysis in the Vulnerability profile and set the action for each analysis engine to \"drop\", \"reset-both\", \"reset-client\" or \"reset-server\".",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "vulnerability_protection_profile",
+   "description": "Inline Cloud Analysis is an Advanced Threat Prevention feature that enables the detection of advanced, highly-evasive zero-day command-and-control (C2) threats, command injection and SQL injection vulnerabilities in real-time by querying the Advanced Threat Prevention cloud service.  It is recommended to configure the action for each analysis engine to block detected threats and prevent malicious activity."
+  },
+  {
+   "id": 361,
+   "name": "The WildFire file forwarding size limit for eml files should be set to the recommended value, based on PAN-OS version",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_wildfire",
+   "description": "The higher file size limit enables the firewall to send larger eml files to WildFire for inspection to identify threats, including zero-day threats, in eml files."
+  },
+  {
+   "id": 363,
+   "name": "Enable Inline Cloud Analysis for Wildfire Profiles.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "wildfire_analysis_profile",
+   "description": "Enabling Inline Cloud Analysis for your WildFire security profile is a significant enhancement to your network's security posture. By leveraging real-time, cloud-based machine learning and behavioral analysis, it can identify and prevent advanced malware, including zero-day threats, from entering your network. Unlike traditional methods, this proactive approach can detonate and analyze unknown files in a secure, cloud-based environment, ensuring your network and applications are protected from emerging and advanced cyberattacks, all without compromising performance."
+  },
+  {
+   "id": 364,
+   "name": "Enable Cloud Inline Analysis in Anti-Spyware Profile",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "anti_spyware_profile",
+   "description": "Enable Cloud Inline Analysis in the Anti-Spyware profile to leverage ML-based detection engines for advanced threat prevention."
+  },
+  {
+   "id": 365,
+   "name": "Enable Cloud Inline Analysis in Vulnerability Protection Profile",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "vulnerability_protection_profile",
+   "description": "Enable Cloud Inline Analysis to leverage real-time cloud-based detection for advanced threats."
+  },
+  {
+   "id": 366,
+   "name": "Advanced URL Filtering profile attached to security rules",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Creating a profile and attaching it to at least one rule allows the operationalization of ensuring advanced security services, ensuring the system can actively scan for and block threats in your network traffic."
+  },
+  {
+   "id": 367,
+   "name": "Attach an Advanced ATP Vulnerability to at least one rule.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Creating a profile and attach it to at least one rule, which allows the operationalization of ensuring advanced security services ensuring the system can actively scan for and block threats in your network traffic."
+  },
+  {
+   "id": 368,
+   "name": "Attach an Advanced ATP Spyware Profile to at least one rule.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Creating a profile and attach it to at least one rule, which allows the operationalization of ensuring advanced security services ensuring the system can actively scan for and block threats in your network traffic."
+  },
+  {
+   "id": 370,
+   "name": "Attach an Advanced Wildfire Security Profile to at least one rule.",
+   "severity": "Informational",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Creating a profile and attach it to at least one rule, which allows the operationalization of ensuring advanced security services ensuring the system can actively scan for and block threats in your network traffic."
+  },
+  {
+   "id": 371,
+   "name": "Enforce Quantum-Safe algorithms by setting encryption algorithms in all Decryption Profiles to AES-256-GCM or CHACHA20-POLY1305. Deprecated algorithms that must be disabled: 3DES, RC4, AES-128-CBC, AES-256-CBC, and AES-128-GCM.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "Legacy algorithms like 3DES, RC4, and CBC-mode AES are susceptible to padding oracle attacks and lack the bit-strength required for long-term quantum resistance. AES-256 in GCM mode provides superior integrity and confidentiality for sensitive data."
+  },
+  {
+   "id": 372,
+   "name": "Configure Authentication Algorithms in Decryption Profiles to SHA-256 or SHA-384 to ensure cryptographic integrity during handshakes. Deprecated algorithms that must be disabled: MD5 and SHA-1.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "MD5 and SHA-1 are cryptographically \"broken\" and vulnerable to collision attacks, meaning an attacker could potentially forge digital signatures. Forcing SHA-256+ ensures that the identity of the server is verified using mathematically robust hashing."
+  },
+  {
+   "id": 373,
+   "name": "Enable \"Block sessions with untrusted issuers\" in Decryption Profiles to ensure all bypassed traffic originates from a verified Certificate Authority.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "Certificates issued by unknown or untrusted CAs may be self-signed by malicious actors or generated by internal \"shadow IT\" tools. Blocking untrusted issuers forces all applications to prove their identity via a trusted, audited root chain."
+  },
+  {
+   "id": 375,
+   "name": "Update the SSL Decryption Profile to ensure PQC Standard and/or PQC Experimental is enabled in the SSL Protocol Settings.",
+   "severity": "Warning",
+   "section": "objects",
+   "object_type": "decryption_profile",
+   "description": "This enables the firewall to translate classical algorithms into Quantum-Safe sessions. By selecting PQC standards for client and server sessions, you protect decrypted traffic from being harvested now and decrypted later (HNDL) by quantum computers."
+  },
+  {
+   "id": 376,
+   "name": "Update the IPSec Crypto Profile with one or more of the following Post-Quantum Key Exchange algorithms in the Advanced Options: ML-KEM NTRU-Prime HQC BIKE Classic McEliece FrodoKEM SHAKE",
+   "severity": "Warning",
+   "section": "network",
+   "object_type": "ipsec_crypto_profile",
+   "description": "Using multiple rounds of PQC algorithms in key generation provides Crypto Agility. This ensures the tunnel remains secure even if one algorithm is eventually broken, achieving maximum key strength for long-lived Site-to-Site VPN tunnels."
+  },
+  {
+   "id": 398,
+   "name": "A Security policy rule should be configured to block inbound traffic from known C2 infrastructure IP addresses",
+   "severity": "High",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses known to host command-and-control services. The built-in \"Palo Alto Networks - Adv. IP Defense: C2 infrastructure\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 399,
+   "name": "A Security policy rule should be configured to block outbound traffic to known C2 infrastructure IP addresses",
+   "severity": "High",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block outbound traffic to IP addresses known to host command-and-control services. The built-in \"Palo Alto Networks - Adv. IP Defense: C2 infrastructure\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 400,
+   "name": "A Security policy rule should be configured to block inbound traffic from IPs hardcoded in malware",
+   "severity": "High",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses that are hardcoded in malware samples or appear in exploitation payload shellcode. The built-in \"Palo Alto Networks - Adv. IP Defense: Hardcoded in malware\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 401,
+   "name": "A Security policy rule should be configured to block outbound traffic to IPs hardcoded in malware",
+   "severity": "High",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block outbound traffic to IP addresses that are hardcoded in malware samples or appear in exploitation payload shellcode. The built-in \"Palo Alto Networks - Adv. IP Defense: Hardcoded in malware\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 402,
+   "name": "A Security policy rule should be configured to block inbound traffic from known commercial VPN IP addresses",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses owned by commercial VPN service providers. VPNs can be used to hide traffic sources and evade security controls. The built-in \"Palo Alto Networks - Adv. IP Defense: VPN\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 404,
+   "name": "A Security policy rule should be configured to block inbound traffic from known proxy IP addresses",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses that host proxy services (HTTP, SOCKS, OpenVPN, V2Ray). Proxies can be used to hide traffic sources and bypass security controls. The built-in \"Palo Alto Networks - Adv. IP Defense: Proxies\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 406,
+   "name": "A Security policy rule should be configured to block inbound traffic from known scanner and brute-force IP addresses",
+   "severity": "High",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses conducting scanning or brute-force activities. These IPs are actively performing reconnaissance or credential attacks. The built-in \"Palo Alto Networks - Adv. IP Defense: Scanner and brute-force\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 408,
+   "name": "A Security policy rule should be configured to block inbound traffic from known exposed vulnerable service IP addresses",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rulebase",
+   "description": "Block inbound traffic from IP addresses hosting publicly reachable services vulnerable to known CVEs or exploits. These IPs may be used as attack staging points. The built-in \"Palo Alto Networks - Adv. IP Defense: Exposed vulnerable services\" EDL is updated dynamically based on the latest threat intelligence. Configure the Security policy rule to Log at Session End and forward the logs appropriately to track activity."
+  },
+  {
+   "id": 410,
+   "name": "Security policy rules with deny/drop/reset actions should use both AIPD C2 and malware EDLs in source or destination",
+   "severity": "Warning",
+   "section": "policies",
+   "object_type": "security_rule",
+   "description": "Block traffic to and from known C2 infrastructure and IPs hardcoded in malware. The built-in 'Palo Alto Networks - Adv. IP Defense: C2 infrastructure' and 'Hardcoded in malware' EDLs are updated dynamically based on the latest threat intelligence."
+  }
+ ]
+}

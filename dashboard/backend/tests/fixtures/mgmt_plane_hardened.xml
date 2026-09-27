@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: management-plane settings that follow every recommendation checked by the
+  admin_*, api_key_*, password_*, mgmt_tls_*, snmp_*, ldap_*, radius_*, tacacs_*, syslog_*,
+  *_logs_not_forwarded and content_updates_* rules. Tests weaken one setting at a time.
+  Paths: pan-os-codegen specs and Palo Alto SCM failed-field names (setting.management.*).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <mgt-config>
+    <password-complexity><enabled>yes</enabled><minimum-length>14</minimum-length></password-complexity>
+  </mgt-config>
+  <shared>
+    <ssl-tls-service-profile>
+      <entry name="mgmt-tls"><certificate>mgmt-cert</certificate><protocol-settings><min-version>tls1-2</min-version><max-version>max</max-version></protocol-settings></entry>
+    </ssl-tls-service-profile>
+    <server-profile>
+      <ldap><entry name="corp-ldap"><server><entry name="dc1"><address>dc1.corp.example.com</address><port>636</port></entry></server>
+        <ssl>yes</ssl><verify-server-certificate>yes</verify-server-certificate></entry></ldap>
+      <radius><entry name="corp-radius"><protocol><PEAP-MSCHAPv2/></protocol><server><entry name="r1"><ip-address>192.0.2.10</ip-address></entry></server></entry></radius>
+      <tacplus><entry name="corp-tacacs"><protocol>CHAP</protocol><server><entry name="t1"><address>192.0.2.12</address></entry></server></entry></tacplus>
+    </server-profile>
+    <log-settings>
+      <syslog><entry name="siem"><server><entry name="s1"><server>siem.corp.example.com</server><transport>SSL</transport><port>6514</port></entry></server></entry></syslog>
+      <snmptrap><entry name="nms"><version><v3><server><entry name="n1"><manager>192.0.2.21</manager><user>nms</user></entry></server></v3></version></entry></snmptrap>
+      <system><match-list><entry name="sys-all"><filter>All Logs</filter><send-syslog><member>siem</member></send-syslog></entry></match-list></system>
+      <config><match-list><entry name="cfg-all"><filter>All Logs</filter><send-to-panorama>yes</send-to-panorama></entry></match-list></config>
+    </log-settings>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>mgmt-fw</hostname>
+          <ssl-tls-service-profile>mgmt-tls</ssl-tls-service-profile>
+          <snmp-setting><access-setting><version><v3><users><entry name="nms"/></users></v3></version></access-setting></snmp-setting>
+          <update-schedule>
+            <anti-virus><recurring><hourly><at>5</at><action>download-and-install</action></hourly></recurring></anti-virus>
+            <threats><recurring><every-30-mins><at>10</at><action>download-and-install</action></every-30-mins></recurring></threats>
+            <wildfire><recurring><real-time/></recurring></wildfire>
+          </update-schedule>
+        </system>
+        <setting>
+          <management>
+            <idle-timeout>10</idle-timeout>
+            <admin-lockout><failed-attempts>5</failed-attempts><lockout-time>30</lockout-time></admin-lockout>
+            <api><key><lifetime>43200</lifetime></key></api>
+          </management>
+        </setting>
+      </deviceconfig>
+      <vsys><entry name="vsys1"/></vsys>
+    </entry>
+  </devices>
+</config>

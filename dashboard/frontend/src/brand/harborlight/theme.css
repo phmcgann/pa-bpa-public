@@ -1,0 +1,179 @@
+/*
+ * Harborlight Consulting — brand tokens.
+ *
+ * Harbor Navy #0B2545, Beacon Gold #C9A227, Channel Green #1E7B4F on a cool slate neutral scale.
+ * Navy carries action (buttons, links, active nav); gold is the brand's light, used for decoration
+ * only in light mode (rules, the cover band, selection) because it can't carry text on white; in
+ * dark mode gold becomes the text accent. Green means "good". One typeface: Manrope.
+ * Every text token clears 4.5:1 on its surfaces.
+ */
+
+:root {
+  --bg: #f6f8fb;
+  --bg-sidebar: #eef2f7;
+  --surface: #ffffff;
+  --surface-2: #f3f6fa;
+  --surface-3: #e9eef5;
+  --border: #e1e7ef;
+  --border-strong: #cbd4e1;
+  --divider: #ebeff5;
+  --overlay: rgba(11, 37, 69, 0.3);
+
+  --text-primary: #0f1b2d;
+  --text-secondary: #44536a;
+  --text-muted: #5e6b80;
+  --text-faint: #98a3b5;
+
+  --brand: #c9a227;           /* Beacon Gold: decoration, never text on light */
+  --accent: #13315c;          /* navy fill that carries white text at 12.6:1 */
+  --accent-hover: #0b2545;
+  --accent-text: #1f4e8c;
+  --accent-soft: color-mix(in srgb, #1f4e8c 8%, transparent);
+  --focus-ring: color-mix(in srgb, #1f4e8c 40%, transparent);
+  --selection: color-mix(in srgb, #c9a227 28%, transparent);
+
+  --good: #1e7b4f;
+  --good-text: #1e7b4f;
+  --sev-info: #98a3b5;
+  --sev-info-text: #5a6679;
+
+  --shadow-card: 0 1px 2px rgba(11, 37, 69, 0.05);
+  --shadow-pop: 0 12px 32px -8px rgba(11, 37, 69, 0.2), 0 2px 6px rgba(11, 37, 69, 0.06);
+
+  --logo-ink: #0b2545;
+  --logo-gold: #c9a227;
+  --logo-green: #1e7b4f;
+  --logo-muted: #51607a;
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --bg: #0a1424;
+    --bg-sidebar: #0c182b;
+    --surface: #101d31;
+    --surface-2: #15243b;
+    --surface-3: #1b2d48;
+    --border: #203351;
+    --border-strong: #2b4266;
+    --divider: #182a43;
+    --overlay: rgba(2, 8, 18, 0.6);
+    --text-primary: #e9eef5;
+    --text-secondary: #b3bfd1;
+    --text-muted: #8d9ab0;
+    --text-faint: #5f6d85;
+    --brand: #d4b24c;
+    --accent: #2e5c99;
+    --accent-hover: #3a6cb0;
+    --accent-text: #e2c35a;
+    --accent-soft: color-mix(in srgb, #d4b24c 14%, transparent);
+    --focus-ring: color-mix(in srgb, #e2c35a 45%, transparent);
+    --good: #3fb37b;
+    --good-text: #4cc38a;
+    --sev-info: #5f6d85;
+    --sev-info-text: #a3afc2;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --logo-ink: #f4f6fa;
+    --logo-gold: #d9b94a;
+    --logo-green: #3fb37b;
+    --logo-muted: #a9b6cc;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a1424;
+  --bg-sidebar: #0c182b;
+  --surface: #101d31;
+  --surface-2: #15243b;
+  --surface-3: #1b2d48;
+  --border: #203351;
+  --border-strong: #2b4266;
+  --divider: #182a43;
+  --overlay: rgba(2, 8, 18, 0.6);
+  --text-primary: #e9eef5;
+  --text-secondary: #b3bfd1;
+  --text-muted: #8d9ab0;
+  --text-faint: #5f6d85;
+  --brand: #d4b24c;
+  --accent: #2e5c99;
+  --accent-hover: #3a6cb0;
+  --accent-text: #e2c35a;
+  --accent-soft: color-mix(in srgb, #d4b24c 14%, transparent);
+  --focus-ring: color-mix(in srgb, #e2c35a 45%, transparent);
+  --good: #3fb37b;
+  --good-text: #4cc38a;
+  --sev-info: #5f6d85;
+  --sev-info-text: #a3afc2;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --logo-ink: #f4f6fa;
+  --logo-gold: #d9b94a;
+  --logo-green: #3fb37b;
+  --logo-muted: #a9b6cc;
+}
+
+@page {
+  @top-left {
+    content: "Harborlight Consulting";
+    font-family: Manrope, sans-serif;
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #0b2545;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+    padding-left: 14mm;
+  }
+  @top-right {
+    content: "Firewall best practice assessment";
+    font-family: Manrope, sans-serif;
+    font-size: 7.5pt;
+    color: #5e6b80;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+    padding-right: 14mm;
+  }
+  @bottom-left {
+    content: "Confidential";
+    font-family: Manrope, sans-serif;
+    font-size: 7.5pt;
+    color: #5e6b80;
+    vertical-align: top;
+    padding-top: 5mm;
+    padding-left: 14mm;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: Manrope, sans-serif;
+    font-size: 7.5pt;
+    color: #5e6b80;
+    vertical-align: top;
+    padding-top: 5mm;
+    padding-right: 14mm;
+  }
+}
+
+@media print {
+  :root, :root[data-theme="dark"] {
+    --bg: #ffffff !important;
+    --surface: #ffffff !important;
+    --surface-2: #f3f6fa !important;
+    --surface-3: #e9eef5 !important;
+    --border: #d9e0ea !important;
+    --border-strong: #c5cfdc !important;
+    --divider: #e4e9f0 !important;
+    --text-primary: #0f1b2d !important;
+    --text-secondary: #44536a !important;
+    --text-muted: #5e6b80 !important;
+    --brand: #c9a227 !important;
+    --accent-text: #1f4e8c !important;
+    --good-text: #1e7b4f !important;
+    --sev-info: #98a3b5 !important;
+    --sev-info-text: #5a6679 !important;
+    --logo-ink: #0b2545 !important;
+    --logo-gold: #c9a227 !important;
+    --logo-green: #1e7b4f !important;
+    --logo-muted: #51607a !important;
+  }
+}

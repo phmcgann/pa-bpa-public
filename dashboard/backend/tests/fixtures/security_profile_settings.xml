@@ -1,0 +1,193 @@
+<?xml version="1.0"?>
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <profiles>
+            <virus>
+              <entry name="av_test">
+                <decoder>
+                  <entry name="ftp">
+                    <action>reset-both</action>
+                    <wildfire-action>reset-both</wildfire-action>
+                    <mlav-action>reset-both</mlav-action>
+                  </entry>
+                  <entry name="http2">
+                    <action>default</action>
+                    <wildfire-action>default</wildfire-action>
+                    <mlav-action>default</mlav-action>
+                  </entry>
+                </decoder>
+                <mlav-engine-filebased-enabled>
+                  <entry name="Windows Executables">
+                    <mlav-policy-action>enable</mlav-policy-action>
+                  </entry>
+                  <entry name="MSOffice">
+                    <mlav-policy-action>disable</mlav-policy-action>
+                  </entry>
+                </mlav-engine-filebased-enabled>
+                <threat-exception>
+                  <entry name="2476470"/>
+                </threat-exception>
+              </entry>
+            </virus>
+            <spyware>
+              <entry name="spy_test">
+                <rules>
+                  <entry name="simple-critical">
+                    <severity><member>critical</member></severity>
+                    <action><reset-both/></action>
+                    <packet-capture>single-packet</packet-capture>
+                  </entry>
+                  <entry name="simple-high">
+                    <severity><member>high</member></severity>
+                    <action><default/></action>
+                    <packet-capture>disable</packet-capture>
+                  </entry>
+                  <entry name="simple-medium">
+                    <severity><member>medium</member></severity>
+                    <action><reset-both/></action>
+                    <packet-capture>single-packet</packet-capture>
+                  </entry>
+                  <entry name="simple-low">
+                    <severity><member>low</member></severity>
+                    <action><default/></action>
+                    <packet-capture>single-packet</packet-capture>
+                  </entry>
+                </rules>
+                <botnet-domains>
+                  <sinkhole>
+                    <ipv4-address>pan-sinkhole-default-ip</ipv4-address>
+                  </sinkhole>
+                  <dns-security-categories>
+                    <entry name="pan-dns-sec-malware">
+                      <action>sinkhole</action>
+                      <packet-capture>single-packet</packet-capture>
+                    </entry>
+                    <entry name="pan-dns-sec-ddns">
+                      <action>default</action>
+                      <packet-capture>disable</packet-capture>
+                    </entry>
+                  </dns-security-categories>
+                  <whitelist>
+                    <entry name="known-good.example.com">
+                      <description>Vendor-confirmed false positive</description>
+                    </entry>
+                  </whitelist>
+                </botnet-domains>
+                <cloud-inline-analysis>yes</cloud-inline-analysis>
+                <mica-engine-spyware-enabled>
+                  <entry name="HTTP Command and Control detector">
+                    <inline-policy-action>reset-both</inline-policy-action>
+                  </entry>
+                  <entry name="HTTP2 Command and Control detector">
+                    <inline-policy-action>alert</inline-policy-action>
+                  </entry>
+                </mica-engine-spyware-enabled>
+              </entry>
+            </spyware>
+            <vulnerability>
+              <entry name="vuln_test">
+                <rules>
+                  <entry name="simple-client-critical">
+                    <severity><member>critical</member></severity>
+                    <action><reset-both/></action>
+                    <packet-capture>single-packet</packet-capture>
+                    <host>client</host>
+                  </entry>
+                  <entry name="simple-client-high">
+                    <severity><member>high</member></severity>
+                    <action><default/></action>
+                    <packet-capture>disable</packet-capture>
+                    <host>client</host>
+                  </entry>
+                </rules>
+                <threat-exception>
+                  <entry name="40004">
+                    <action><allow/></action>
+                    <exempt-ip>
+                      <entry name="10.1.0.18"/>
+                    </exempt-ip>
+                  </entry>
+                </threat-exception>
+                <mica-engine-vulnerability-enabled>
+                  <entry name="SQL Injection"/>
+                </mica-engine-vulnerability-enabled>
+              </entry>
+            </vulnerability>
+            <url-filtering>
+              <entry name="url_test">
+                <block>
+                  <member>command-and-control</member>
+                  <member>compromised-website</member>
+                  <member>grayware</member>
+                  <member>malware</member>
+                  <member>phishing</member>
+                  <member>ransomware</member>
+                  <member>proxy-avoidance-and-anonymizers</member>
+                </block>
+                <alert>
+                  <member>scanning-activity</member>
+                  <member>dynamic-dns</member>
+                  <member>encrypted-dns</member>
+                </alert>
+                <credential-enforcement>
+                  <mode><disabled/></mode>
+                  <block>
+                    <member>malware</member>
+                  </block>
+                </credential-enforcement>
+                <log-container-page-only>yes</log-container-page-only>
+              </entry>
+            </url-filtering>
+            <wildfire-analysis>
+              <entry name="wf_missing_types">
+                <rules>
+                  <entry name="upload-download">
+                    <application><member>any</member></application>
+                    <file-type><member>pe</member><member>apk</member></file-type>
+                    <direction>both</direction>
+                    <analysis>public-cloud</analysis>
+                  </entry>
+                </rules>
+              </entry>
+              <entry name="wf_full_coverage">
+                <rules>
+                  <entry name="upload-download">
+                    <application><member>any</member></application>
+                    <file-type><member>pe</member><member>pdf</member><member>ms-office</member></file-type>
+                    <direction>both</direction>
+                    <analysis>public-cloud</analysis>
+                  </entry>
+                </rules>
+              </entry>
+            </wildfire-analysis>
+            <file-blocking>
+              <entry name="fb_alert_only">
+                <rules>
+                  <entry name="alert-all">
+                    <action>alert</action>
+                    <direction>both</direction>
+                    <application><member>any</member></application>
+                    <file-type><member>any</member></file-type>
+                  </entry>
+                </rules>
+              </entry>
+              <entry name="fb_blocking">
+                <rules>
+                  <entry name="block-exe">
+                    <action>block</action>
+                    <direction>both</direction>
+                    <application><member>any</member></application>
+                    <file-type><member>PE</member></file-type>
+                  </entry>
+                </rules>
+              </entry>
+            </file-blocking>
+          </profiles>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

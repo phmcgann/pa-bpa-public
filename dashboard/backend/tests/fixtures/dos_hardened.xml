@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: DoS, zone and session protection set up the way every dos_*, zone_*_packet_*,
+  session_* and tcp_* rule recommends. Tests weaken one setting at a time. Element names follow the
+  pan-os-codegen specs (device/profiles/dos-protection, network/profiles/zone-protection,
+  network/zone) and Palo Alto SCM failed-field names (config.rematch, tcp.bypass_exceed_oo_queue).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <setting>
+          <config><rematch>yes</rematch></config>
+          <tcp><bypass-exceed-oo-queue>no</bypass-exceed-oo-queue></tcp>
+        </setting>
+      </deviceconfig>
+      <network>
+        <profiles>
+          <zone-protection-profile>
+            <entry name="edge-zpp">
+              <flood><tcp-syn><enable>yes</enable><syn-cookies/></tcp-syn><udp><enable>yes</enable></udp></flood>
+              <scan><entry name="8001"><action><block-ip><track-by>source</track-by><duration>3600</duration></block-ip></action></entry></scan>
+              <discard-ip-spoof>yes</discard-ip-spoof>
+              <discard-strict-source-routing>yes</discard-strict-source-routing>
+              <discard-loose-source-routing>yes</discard-loose-source-routing>
+              <discard-malformed-option>yes</discard-malformed-option>
+              <discard-unknown-option>yes</discard-unknown-option>
+              <discard-overlapping-tcp-segment-mismatch>yes</discard-overlapping-tcp-segment-mismatch>
+              <discard-tcp-split-handshake>yes</discard-tcp-split-handshake>
+              <remove-tcp-timestamp>yes</remove-tcp-timestamp>
+            </entry>
+          </zone-protection-profile>
+        </profiles>
+      </network>
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="untrust"><network><layer3><member>ethernet1/1</member></layer3><zone-protection-profile>edge-zpp</zone-protection-profile></network></entry>
+            <entry name="dmz"><network><layer3><member>ethernet1/2</member></layer3><enable-packet-buffer-protection>yes</enable-packet-buffer-protection></network></entry>
+          </zone>
+          <profiles>
+            <dos-protection>
+              <entry name="web-classified">
+                <type>classified</type>
+                <flood>
+                  <tcp-syn><enable>yes</enable><syn-cookies><alarm-rate>2000</alarm-rate><activate-rate>3000</activate-rate><maximal-rate>20000</maximal-rate></syn-cookies></tcp-syn>
+                  <udp><enable>yes</enable><red><alarm-rate>2000</alarm-rate><activate-rate>3000</activate-rate><maximal-rate>20000</maximal-rate></red></udp>
+                  <icmp><enable>yes</enable><red><alarm-rate>500</alarm-rate><activate-rate>800</activate-rate><maximal-rate>5000</maximal-rate></red></icmp>
+                  <icmpv6><enable>yes</enable><red><alarm-rate>500</alarm-rate><activate-rate>800</activate-rate><maximal-rate>5000</maximal-rate></red></icmpv6>
+                  <other-ip><enable>yes</enable><red><alarm-rate>500</alarm-rate><activate-rate>800</activate-rate><maximal-rate>5000</maximal-rate></red></other-ip>
+                </flood>
+                <resource><sessions><enabled>yes</enabled><max-concurrent-limit>50000</max-concurrent-limit></sessions></resource>
+              </entry>
+            </dos-protection>
+          </profiles>
+          <rulebase>
+            <dos>
+              <rules>
+                <entry name="protect-web">
+                  <from><zone><member>untrust</member></zone></from><to><zone><member>dmz</member></zone></to>
+                  <source><member>any</member></source><destination><member>any</member></destination><service><member>any</member></service>
+                  <action><protect/></action>
+                  <protection><classified><profile>web-classified</profile><classification-criteria><address>destination-ip-only</address></classification-criteria></classified></protection>
+                </entry>
+              </rules>
+            </dos>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture for the Advanced IP Defense (#398-#410), Gen AI / liability (#340, #344, #348, #353, #354,
+  #357) and post-quantum decryption (#371, #375) checks, set up the way each wants. AIPD list names are from
+  Palo Alto's "Advanced IP Defense EDL-Based Protection"; decryption fields from SCM failed-field names.
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <application-filter>
+            <entry name="Gen AI Apps"/><entry name="Sanctioned Gen AI apps"/><entry name="Tolerated Gen AI apps"/>
+          </application-filter>
+          <profiles>
+            <url-filtering><entry name="url">
+              <block>
+                <member>abused-drugs</member><member>adult</member><member>copyright-infringement</member><member>extremism</member>
+                <member>gambling</member><member>peer-to-peer</member><member>questionable</member><member>weapons</member>
+                <member>ai-code-assistant</member><member>ai-conversational-assistant</member><member>ai-data-and-workflow-optimizer</member>
+                <member>ai-meeting-assistant</member><member>ai-platform-service</member><member>ai-writing-assistant</member>
+              </block>
+              <credential-enforcement><mode><domain-credentials/></mode><block>
+                <member>abused-drugs</member><member>adult</member><member>copyright-infringement</member><member>extremism</member>
+                <member>gambling</member><member>peer-to-peer</member><member>questionable</member><member>weapons</member>
+              </block></credential-enforcement>
+            </entry></url-filtering>
+            <data-filtering><entry name="dlp"/></data-filtering>
+            <decryption><entry name="dp-pq">
+              <ssl-protocol-settings>
+                <min-version>tls1-2</min-version>
+                <enc-algo-3des>no</enc-algo-3des><enc-algo-rc4>no</enc-algo-rc4><enc-algo-aes-128-cbc>no</enc-algo-aes-128-cbc>
+                <enc-algo-aes-256-cbc>no</enc-algo-aes-256-cbc><enc-algo-aes-128-gcm>no</enc-algo-aes-128-gcm>
+                <keyxchg-algo-pqc-standardized>yes</keyxchg-algo-pqc-standardized>
+              </ssl-protocol-settings>
+            </entry></decryption>
+          </profiles>
+          <profile-group><entry name="genai-group"><data-filtering><member>dlp</member></data-filtering></entry></profile-group>
+          <rulebase>
+            <security><rules>
+              <entry name="aipd-in"><from><member>untrust</member></from><to><member>any</member></to>
+                <source><member>panw-aipd-c2-infra-ip-list</member><member>panw-aipd-in-malware-ip-list</member><member>panw-aipd-vpn-ip-list</member>
+                  <member>panw-aipd-proxies-ip-list</member><member>panw-aipd-scanning-ip-list</member><member>panw-aipd-vuln-svcs-ip-list</member></source>
+                <destination><member>any</member></destination><application><member>any</member></application><service><member>any</member></service><action>deny</action></entry>
+              <entry name="aipd-out"><from><member>any</member></from><to><member>untrust</member></to><source><member>any</member></source>
+                <destination><member>panw-aipd-c2-infra-ip-list</member><member>panw-aipd-in-malware-ip-list</member></destination>
+                <application><member>any</member></application><service><member>any</member></service><action>deny</action></entry>
+              <entry name="genai-sanctioned"><from><member>trust</member></from><to><member>untrust</member></to><source><member>any</member></source>
+                <destination><member>any</member></destination><application><member>Sanctioned Gen AI apps</member></application>
+                <service><member>application-default</member></service><action>allow</action>
+                <profile-setting><group><member>genai-group</member></group></profile-setting></entry>
+              <entry name="genai-tolerated"><from><member>trust</member></from><to><member>untrust</member></to><source><member>any</member></source>
+                <source-user><member>corp\ai-pilot</member></source-user>
+                <destination><member>any</member></destination><application><member>Tolerated Gen AI apps</member></application>
+                <service><member>application-default</member></service><action>allow</action>
+                <profile-setting><profiles><data-filtering><member>dlp</member></data-filtering></profiles></profile-setting></entry>
+              <entry name="genai-block"><from><member>trust</member></from><to><member>untrust</member></to><source><member>any</member></source>
+                <destination><member>any</member></destination><application><member>Gen AI Apps</member></application>
+                <service><member>application-default</member></service><action>deny</action></entry>
+            </rules></security>
+            <decryption><rules><entry name="decrypt-out"><action>decrypt</action><type><ssl-forward-proxy/></type><profile>dp-pq</profile></entry></rules></decryption>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

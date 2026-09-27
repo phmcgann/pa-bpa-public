@@ -1,0 +1,27 @@
+# Changelog
+
+All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
+**major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
+
+## [1.0.0] - 2026-09-26
+
+First public release.
+
+### Assessments
+- Upload a PAN-OS configuration export, a tech support file, or a Panorama export (assessed per device group); several files at once.
+- 189 core checks across security policy, security profiles, decryption, management access, logging, GlobalProtect, HA, VPN, DoS and zone protection, certificates, NAT, software and licensing. 132 are mapped to the matching Palo Alto Strata Cloud Manager checks.
+- PAN-OS predefined profiles are graded when a rule uses them; known PAN-OS security advisories are matched to the running version.
+- Optional Palo Alto SCM BPA run on the stored configuration, shown alongside the core findings without double counting, plus a coverage view of any gaps.
+
+### Dashboard
+- Risk score and severity tiles, executive summary, findings by category, and a searchable findings list with dismiss/restore.
+- Remediation plan grouping findings into pieces of work, with copy-ready PAN-OS CLI commands where a fix is mechanical.
+- Rulebase analysis (shadowed rules, unused and duplicate objects), NAT review, threat-intelligence blocking coverage.
+- Notes on findings, work items and rules, numbered as superscript references with a Notes appendix; notes carry over to the next run.
+- Compare any two runs, and "changes since last run" for each firewall.
+- Re-analyze an assessment from its stored file without uploading it again.
+- Branded print/PDF report with cover page, numbered sections and appendix; filtered prints are labelled.
+- Ships with the fictional Harborlight Consulting brand; your own logo, colours and name can be built in as a brand pack.
+
+### Installing
+- One-command installers for Windows (PowerShell) and macOS (Terminal) using prebuilt images for Intel and Apple Silicon.

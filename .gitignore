@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+
+# Local data and secrets
+dashboard/backend/app.db
+dashboard/.env
+.env
+
+# Node / frontend
+node_modules/
+dist/
+*.local
+
+# Firewall files you're testing with: never commit these
+/*.xml
+/*.tgz
+/*.tar.gz
+/*.pdf
+
+# OS
+.DS_Store
+*.log

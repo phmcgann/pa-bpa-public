@@ -1,0 +1,80 @@
+# Builds and publishes a release whenever a version tag (v1.2.0) is pushed.
+#
+# 1. Builds the backend and frontend images for Intel/AMD (amd64) and Apple Silicon /
+#    ARM (arm64) and pushes them to GitHub Container Registry:
+#      ghcr.io/phmcgann/pa-bpa-backend:<version> and :latest
+#      ghcr.io/phmcgann/pa-bpa-frontend:<version> and :latest
+# 2. Creates the GitHub Release with the files the installers download, and this
+#    version's notes from CHANGELOG.md.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: dashboard/${{ matrix.component }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}
+            VITE_API_BASE=
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/pa-bpa-${{ matrix.component }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/pa-bpa-${{ matrix.component }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=GPL-3.0-only
+            org.opencontainers.image.version=${{ github.ref_name }}
+
+  release:
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare release files
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+          mkdir -p out
+          # The stack file pins this release's images; the installers download these files.
+          sed "s/__VERSION__/${VERSION}/g" dashboard/deploy/docker-compose.yml > out/docker-compose.yml
+          cp dashboard/Caddyfile out/Caddyfile
+          cp install/install.sh install/install.ps1 out/
+          python3 - "${VERSION#v}" <<'PY'
+          import re, sys
+          v = sys.argv[1]
+          text = open("CHANGELOG.md").read()
+          m = re.search(rf"^## \[?{re.escape(v)}\]?.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
+          open("notes.md", "w").write((m.group(1).strip() if m else "See CHANGELOG.md.") + "\n")
+          PY
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" out/* \
+            --title "PA BPA Dashboard ${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            --verify-tag

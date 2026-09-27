@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<!-- Synthetic Panorama export: decryption policy split across shared and
+     device-group rulebases, network profiles split across two templates. -->
+<config version="11.1.0">
+  <shared>
+    <profiles>
+      <decryption>
+        <entry name="shared-weak">
+          <ssl-forward-proxy>
+            <block-untrusted-issuer>no</block-untrusted-issuer>
+          </ssl-forward-proxy>
+        </entry>
+      </decryption>
+    </profiles>
+    <post-rulebase>
+      <decryption>
+        <rules>
+          <entry name="shared-catchall-decrypt">
+            <action>decrypt</action>
+            <type><ssl-forward-proxy/></type>
+            <profile>shared-weak</profile>
+          </entry>
+        </rules>
+      </decryption>
+    </post-rulebase>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <device-group>
+        <entry name="branch">
+          <devices><entry name="0123456789"/></devices>
+          <reference-templates>
+            <member>tmpl-base</member>
+            <member>tmpl-override</member>
+          </reference-templates>
+          <pre-rulebase>
+            <decryption>
+              <rules>
+                <entry name="dg-exclude-health">
+                  <action>no-decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                </entry>
+              </rules>
+            </decryption>
+          </pre-rulebase>
+        </entry>
+      </device-group>
+      <template>
+        <entry name="tmpl-base">
+          <config>
+            <devices>
+              <entry name="localhost.localdomain">
+                <network>
+                  <profiles>
+                    <zone-protection-profile>
+                      <entry name="branch-zpp">
+                        <flood><udp><enable>no</enable></udp></flood>
+                      </entry>
+                    </zone-protection-profile>
+                    <interface-management-profile>
+                      <entry name="mgmt">
+                        <telnet>yes</telnet>
+                      </entry>
+                      <entry name="legacy-http">
+                        <http>yes</http>
+                      </entry>
+                    </interface-management-profile>
+                  </profiles>
+                  <interface>
+                    <ethernet>
+                      <entry name="ethernet1/3">
+                        <layer3>
+                          <interface-management-profile>mgmt</interface-management-profile>
+                        </layer3>
+                      </entry>
+                      <entry name="ethernet1/4">
+                        <layer3>
+                          <interface-management-profile>legacy-http</interface-management-profile>
+                        </layer3>
+                      </entry>
+                    </ethernet>
+                  </interface>
+                </network>
+                <vsys>
+                  <entry name="vsys1">
+                    <zone>
+                      <entry name="branch-lan">
+                        <network>
+                          <layer3><member>ethernet1/3</member></layer3>
+                          <zone-protection-profile>branch-zpp</zone-protection-profile>
+                        </network>
+                      </entry>
+                    </zone>
+                  </entry>
+                </vsys>
+              </entry>
+            </devices>
+          </config>
+        </entry>
+        <entry name="tmpl-override">
+          <config>
+            <devices>
+              <entry name="localhost.localdomain">
+                <network>
+                  <profiles>
+                    <interface-management-profile>
+                      <entry name="mgmt">
+                        <https>yes</https>
+                        <ssh>yes</ssh>
+                      </entry>
+                    </interface-management-profile>
+                  </profiles>
+                </network>
+              </entry>
+            </devices>
+          </config>
+        </entry>
+      </template>
+    </entry>
+  </devices>
+</config>

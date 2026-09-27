@@ -1,0 +1,252 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture for the decryption / zone protection / interface management
+  profile / log forwarding checks. Element names and nesting follow Palo Alto's
+  pan-os-codegen schema specs (decryption-profile, decryption-policy,
+  zone-protection, interface-management-profile), not a real device export.
+-->
+<config version="11.1.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>fw-netdec</hostname>
+        </system>
+      </deviceconfig>
+      <network>
+        <profiles>
+          <zone-protection-profile>
+            <entry name="good-zpp">
+              <flood>
+                <tcp-syn>
+                  <enable>yes</enable>
+                  <syn-cookies>
+                    <alarm-rate>10000</alarm-rate>
+                    <activate-rate>10000</activate-rate>
+                    <maximal-rate>40000</maximal-rate>
+                  </syn-cookies>
+                </tcp-syn>
+                <udp><enable>yes</enable></udp>
+              </flood>
+              <scan>
+                <entry name="8001">
+                  <action><block-ip><track-by>source</track-by><duration>3600</duration></block-ip></action>
+                  <interval>2</interval>
+                  <threshold>100</threshold>
+                </entry>
+                <entry name="8002">
+                  <action><block/></action>
+                </entry>
+              </scan>
+            </entry>
+            <entry name="weak-zpp">
+              <flood>
+                <tcp-syn>
+                  <enable>yes</enable>
+                  <red><alarm-rate>10000</alarm-rate></red>
+                </tcp-syn>
+                <udp><enable>no</enable></udp>
+                <icmp><enable>no</enable></icmp>
+              </flood>
+              <scan>
+                <entry name="8001">
+                  <action><allow/></action>
+                </entry>
+              </scan>
+            </entry>
+            <entry name="no-recon-zpp">
+              <discard-ip-spoof>yes</discard-ip-spoof>
+            </entry>
+            <entry name="unused-zpp">
+              <flood>
+                <udp><enable>no</enable></udp>
+              </flood>
+              <scan>
+                <entry name="8001"><action><alert/></action></entry>
+              </scan>
+            </entry>
+            <entry name="alert-zpp">
+              <scan>
+                <entry name="8001"><action><block-ip><track-by>source</track-by><duration>3600</duration></block-ip></action></entry>
+                <entry name="8002"><action><alert/></action></entry>
+                <entry name="8003"><action><alert/></action></entry>
+              </scan>
+            </entry>
+          </zone-protection-profile>
+          <interface-management-profile>
+            <entry name="insecure-mgmt">
+              <https>yes</https>
+              <telnet>yes</telnet>
+              <http>yes</http>
+            </entry>
+            <entry name="unattached-insecure">
+              <telnet>yes</telnet>
+            </entry>
+            <entry name="secure-mgmt">
+              <https>yes</https>
+              <ssh>yes</ssh>
+              <permitted-ip>
+                <entry name="10.0.0.0/24"/>
+              </permitted-ip>
+            </entry>
+          </interface-management-profile>
+        </profiles>
+        <interface>
+          <ethernet>
+            <entry name="ethernet1/1">
+              <layer3>
+                <interface-management-profile>insecure-mgmt</interface-management-profile>
+              </layer3>
+            </entry>
+            <entry name="ethernet1/2">
+              <layer3>
+                <units>
+                  <entry name="ethernet1/2.10">
+                    <interface-management-profile>insecure-mgmt</interface-management-profile>
+                  </entry>
+                </units>
+              </layer3>
+            </entry>
+          </ethernet>
+          <loopback>
+            <units>
+              <entry name="loopback.1">
+                <interface-management-profile>secure-mgmt</interface-management-profile>
+              </entry>
+            </units>
+          </loopback>
+        </interface>
+      </network>
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="trust">
+              <network>
+                <layer3><member>ethernet1/2.10</member></layer3>
+                <zone-protection-profile>good-zpp</zone-protection-profile>
+              </network>
+            </entry>
+            <entry name="untrust">
+              <network>
+                <layer3><member>ethernet1/1</member></layer3>
+                <zone-protection-profile>weak-zpp</zone-protection-profile>
+              </network>
+            </entry>
+            <entry name="dmz">
+              <network>
+                <layer3/>
+                <zone-protection-profile>no-recon-zpp</zone-protection-profile>
+              </network>
+            </entry>
+            <entry name="guest">
+              <network>
+                <layer3/>
+                <zone-protection-profile>alert-zpp</zone-protection-profile>
+              </network>
+            </entry>
+          </zone>
+          <rulebase>
+            <security>
+              <rules>
+                <entry name="forwarded-rule">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <source><member>10.0.0.0/24</member></source>
+                  <destination><member>any</member></destination>
+                  <application><member>web-browsing</member></application>
+                  <service><member>application-default</member></service>
+                  <action>allow</action>
+                  <log-setting>to-panorama</log-setting>
+                </entry>
+                <entry name="local-only-rule">
+                  <from><member>trust</member></from>
+                  <to><member>dmz</member></to>
+                  <source><member>10.0.0.0/24</member></source>
+                  <destination><member>10.1.0.5</member></destination>
+                  <application><member>ssl</member></application>
+                  <service><member>application-default</member></service>
+                  <action>allow</action>
+                </entry>
+              </rules>
+            </security>
+            <decryption>
+              <rules>
+                <entry name="exclude-finance">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <category><member>financial-services</member></category>
+                  <action>no-decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                  <profile>nd-profile</profile>
+                </entry>
+                <entry name="exclude-health">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <category><member>health-and-medicine</member></category>
+                  <action>no-decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                </entry>
+                <entry name="old-exclusion">
+                  <action>no-decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                  <disabled>yes</disabled>
+                </entry>
+                <entry name="decrypt-outbound">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <action>decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                  <profile>weak-decrypt</profile>
+                </entry>
+                <entry name="decrypt-inbound-web">
+                  <from><member>untrust</member></from>
+                  <to><member>dmz</member></to>
+                  <action>decrypt</action>
+                  <type><ssl-inbound-inspection><certificates><member>web-cert</member></certificates></ssl-inbound-inspection></type>
+                  <profile>tls11-decrypt</profile>
+                </entry>
+                <entry name="old-decrypt">
+                  <action>decrypt</action>
+                  <type><ssl-forward-proxy/></type>
+                  <profile>only-on-disabled-rule</profile>
+                  <disabled>yes</disabled>
+                </entry>
+              </rules>
+            </decryption>
+          </rulebase>
+          <profiles>
+            <decryption>
+              <entry name="weak-decrypt">
+                <ssl-forward-proxy>
+                  <block-expired-certificate>no</block-expired-certificate>
+                  <block-untrusted-issuer>yes</block-untrusted-issuer>
+                </ssl-forward-proxy>
+              </entry>
+              <entry name="tls11-decrypt">
+                <ssl-forward-proxy>
+                  <block-expired-certificate>no</block-expired-certificate>
+                </ssl-forward-proxy>
+                <ssl-protocol-settings>
+                  <min-version>tls1-1</min-version>
+                </ssl-protocol-settings>
+              </entry>
+              <entry name="only-on-disabled-rule">
+                <ssl-forward-proxy>
+                  <block-expired-certificate>no</block-expired-certificate>
+                </ssl-forward-proxy>
+                <ssl-protocol-settings>
+                  <min-version>tls1-0</min-version>
+                </ssl-protocol-settings>
+              </entry>
+              <entry name="nd-profile">
+                <ssl-no-proxy>
+                  <block-expired-certificate>no</block-expired-certificate>
+                </ssl-no-proxy>
+              </entry>
+            </decryption>
+          </profiles>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

@@ -1,0 +1,450 @@
+@import "tailwindcss";
+
+/*
+ * PA BPA dashboard — shared design tokens.
+ *
+ * The brand pack's theme.css (src/brand/<brand>/theme.css, loaded after this file) sets the
+ * neutrals, the accent, the logo colours, the typeface and the print header/footer, in light,
+ * dark and print. This file holds what every brand shares: severity colours (always shipped with
+ * an icon + label), chart series and the component styles. Every text token clears 4.5:1 on its
+ * surfaces in both modes.
+ *
+ * Dark mode follows the OS unless the viewer picks one: [data-theme="light"|"dark"] on <html>.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+
+  --overlay: rgba(20, 20, 19, 0.28);
+
+  /* Severity (fills) — status palette; informational is neutral, not "good". */
+  --sev-critical: #d03b3b;
+  --sev-warning: #ec835a;
+  --sev-low: #fab219;
+  --sev-info: #a3a19c;
+  /* Severity as text */
+  --sev-critical-text: #b42e2e;
+  --sev-warning-text: #ad4a17;
+  --sev-low-text: #835400;
+  --sev-info-text: #5f5d58;
+
+  --good: #0ca30c;
+  --good-text: #1c7a2f;
+
+  /* Chart series (validated categorical order, light surface) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+
+  --shadow-card: 0 1px 2px rgba(28, 25, 20, 0.04);
+  --shadow-pop: 0 12px 32px -8px rgba(28, 25, 20, 0.18), 0 2px 6px rgba(28, 25, 20, 0.06);
+
+  /* Legacy names still used by inner report content */
+  --surface-0: var(--surface);
+  --surface-1: var(--surface-2);
+  --status-good: var(--good-text);
+  --status-warning: var(--sev-low);
+  --status-serious: var(--sev-warning);
+  --status-critical: var(--sev-critical);
+  --brand-ink: var(--text-primary);
+  --chart-line: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --sev-info: #7d7b76;
+    --sev-critical-text: #f27676;
+    --sev-warning-text: #f39b74;
+    --sev-low-text: #f2c04f;
+    --sev-info-text: #a9a7a1;
+    --good-text: #5cc46a;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --overlay: rgba(0, 0, 0, 0.5);
+  --sev-info: #7d7b76;
+  --sev-critical-text: #f27676;
+  --sev-warning-text: #f39b74;
+  --sev-low-text: #f2c04f;
+  --sev-info-text: #a9a7a1;
+  --good-text: #5cc46a;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --color-bg: var(--bg);
+  --color-sidebar: var(--bg-sidebar);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-divider: var(--divider);
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-faint: var(--text-faint);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-critical: var(--sev-critical);
+  --color-warning: var(--sev-warning);
+  --color-low: var(--sev-low);
+  --color-info: var(--sev-info);
+  --color-critical-fg: var(--sev-critical-text);
+  --color-warning-fg: var(--sev-warning-text);
+  --color-low-fg: var(--sev-low-text);
+  --color-info-fg: var(--sev-info-text);
+  --color-good: var(--good);
+  --color-good-fg: var(--good-text);
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --radius-card: 12px;
+}
+
+@layer base {
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.01em; font-weight: 600; }
+  a { color: var(--accent-text); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 0 4px;
+    border-radius: 4px;
+  }
+  ::selection { background: var(--selection); }
+  :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
+
+  /* Report tables — every <table> in the app shares one quiet style. */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--divider);
+    vertical-align: top;
+    color: var(--text-primary);
+  }
+  /* Outer columns line up with the card's own text; edge-to-edge tables add their gutter back. */
+  th:first-child, td:first-child { padding-left: 0; }
+  th:last-child, td:last-child { padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background-color 120ms ease; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+
+  /* Native controls that aren't wrapped in a component still look like the rest. */
+  select, input[type="number"], input[type="text"], input[type="search"], input:not([type]) {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background-color: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 5px 9px;
+    min-height: 32px;
+  }
+  select {
+    appearance: none;
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a8883' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    cursor: pointer;
+  }
+  select:hover, input:hover { border-color: var(--text-faint); }
+  input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+  button { font: inherit; cursor: pointer; }
+  button:disabled { cursor: default; }
+  /* Plain <button>s (legacy report content) get the secondary button look. */
+  button:where(:not([class])) {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 5px 12px;
+    min-height: 32px;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  button:where(:not([class])):hover:not(:disabled) { background: var(--surface-2); }
+  button:where(:not([class])):disabled { opacity: 0.5; }
+}
+
+@layer components {
+  .table-scroll { overflow-x: auto; }
+  .tab-num { font-variant-numeric: tabular-nums; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  /* Legacy class names used by report content and the print cover. */
+  .cutline { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .subhead { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-text); }
+  .btn-primary {
+    font-size: 13px; font-weight: 600; color: #fff; background: var(--accent); border: 1px solid transparent;
+    border-radius: 8px; padding: 6px 14px; min-height: 32px;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.55; }
+}
+
+.print-only { display: none; }
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: fade-in 180ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .animate-in { animation: none; } }
+
+/* ── Print: branded cover page, running header/footer, every section on its own page ──── */
+
+/* Side margins are zero on every page (and put back as padding) so every page, the
+   full-bleed cover included, lays out at the same width. Otherwise Chromium lays the whole
+   document out at the cover's width and clips the right edge of every other page. */
+@page {
+  size: letter;
+  margin: 18mm 0 16mm;
+  /* The running header and footer (margin boxes) are in the brand's theme.css. */
+}
+
+/* The cover is full-bleed and carries its own branding — no running header/footer on it. */
+@page cover {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+@media print {
+  /* Paper is always light; the brand's theme.css sets the neutrals and accent for print. */
+  :root, :root[data-theme="dark"] {
+    color-scheme: light !important;
+    --sev-info: #a3a19c !important;
+    --sev-critical-text: #b42e2e !important;
+    --sev-warning-text: #ad4a17 !important;
+    --sev-low-text: #835400 !important;
+    --sev-info-text: #5f5d58 !important;
+    --good-text: #1c7a2f !important;
+    --shadow-card: none !important;
+  }
+
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  html, body { background: #ffffff; font-size: 12px; }
+
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+
+  /* Screen layout scaffolding flattens out on paper. */
+  .app-shell { display: block !important; }
+  .app-main { padding: 0 14mm !important; max-width: none !important; margin: 0 !important; }
+
+  /* Every tab's content prints, in order, regardless of which tab is open on screen. */
+  .tab-panel { display: block !important; }
+
+  /* Cards stay cards on paper — a hairline border and rounded corners, no shadow. Sections
+     break pages by tab (below), not per card; small cards never split across a page. */
+  .report-section, .shadow-card { box-shadow: none !important; }
+  .report-section { break-inside: auto; }
+  .report-section:not(:has(table)) { break-inside: avoid; }
+  /* Long, table-less sections break between their own kept-together items instead. */
+  .report-section:has(.remediation-plan) { break-inside: auto; }
+  .report-section > header { padding-top: 12px !important; break-inside: avoid; break-after: avoid; }
+  .card-section > h3, .card-section > p { break-after: avoid; }
+
+  /* Each tab prints as a numbered section starting on a new page. */
+  .print-section { break-before: page; gap: 14px !important; }
+  /* The cover already ends its page; the first section follows it directly. */
+  #panel-summary, #panel-overview { break-before: auto; }
+  /* The summary is a page of its own; the overview starts on the next one. */
+  #panel-summary { break-after: page; }
+  /* Panels print as blocks, so space the cards explicitly. */
+  .print-section > * + * { margin-top: 14px; }
+  .print-section-heading { display: flex !important; align-items: baseline; gap: 12px;
+    border-bottom: 2px solid var(--brand); padding-bottom: 8px; margin-bottom: 4px; }
+  .print-section-number { font-size: 12px; font-weight: 600; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+  .print-section-heading h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* The screen grids collapse at paper width; keep the overview's two-up layout. */
+  #panel-overview .md\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  #panel-overview .md\:col-span-2 { grid-column: span 2 / span 2 !important; }
+  #panel-overview .md\:col-span-3 { grid-column: span 3 / span 3 !important; }
+  /* System sits beside Licenses; the configured-HA card is too tall for that narrow column,
+     so on paper it takes the full width below them with its settings in two columns. */
+  #panel-overview .overview-side { display: contents; }
+  #panel-overview .overview-side > * { grid-column: span 2 / span 2; }
+  #panel-overview .overview-side > .overview-ha { grid-column: 1 / -1; order: 1; }
+  .ha-rows { columns: 2; column-gap: 32px; }
+  .ha-rows > * { break-inside: avoid; }
+
+  .table-scroll { overflow-x: visible; margin-left: 0; margin-right: 0; }
+  table, th, td { min-width: 0 !important; }
+
+  /* Tables can't scroll on paper, so they must fit the page: let long object names
+     (rule names, zones, EDLs) wrap anywhere, and tighten type and padding. */
+  table { font-size: 10.5px; }
+  th, td { padding: 6px 6px; }
+  th { white-space: normal; }
+  td { overflow-wrap: anywhere; }
+  tbody tr:hover td { background: none; }
+  tr, .keep-together { break-inside: avoid; }
+
+  /* The two long finding tables get fixed column shares on paper, so no column collapses to a
+     sliver and stretches every row over half a page. */
+  .findings-table, .scm-table { table-layout: fixed; }
+  .findings-table th:nth-child(1) { width: 15%; }
+  .findings-table th:nth-child(2) { width: 29%; }
+  .findings-table th:nth-child(3) { width: 11%; }
+  .findings-table th:nth-child(4) { width: 30%; }
+  .findings-table th:nth-child(5) { width: 15%; }
+  .findings-table td, .scm-table td { font-size: 9.5px !important; line-height: 1.35 !important; }
+  .findings-table td *, .scm-table td * { font-size: inherit !important; line-height: inherit !important; }
+  .findings-table td .badge, .scm-table td .badge { font-size: 9px !important; }
+  /* Badges never overflow their cell on paper: a long one ("<rule set> · PAN docs") wraps. */
+  td .badge { white-space: normal; height: auto; min-height: 16px; padding-top: 2px; padding-bottom: 2px;
+    line-height: 1.2 !important; max-width: 100%; flex-wrap: wrap; row-gap: 1px; column-gap: 3px;
+    overflow-wrap: normal; word-break: normal; }
+  /* A severity is one word ("Informational"): it never wraps, let alone mid-word. */
+  td .badge.sev-badge { white-space: nowrap; flex-wrap: nowrap; }
+  /* The "Changes since last run" tables. */
+  .compare-findings-table, .compare-rules-table, .compare-changed-table { table-layout: fixed; }
+  .compare-findings-table td, .compare-rules-table td, .compare-changed-table td { font-size: 9.5px !important; line-height: 1.35 !important; }
+  .compare-findings-table td *, .compare-rules-table td *, .compare-changed-table td * { font-size: inherit !important; line-height: inherit !important; }
+  .compare-findings-table th:nth-child(1) { width: 15%; }
+  .compare-findings-table th:nth-child(2) { width: 53%; }
+  .compare-findings-table th:nth-child(3) { width: 16%; }
+  .compare-findings-table th:nth-child(4) { width: 16%; }
+  .compare-rules-table th:nth-child(1) { width: 44%; }
+  .compare-rules-table th:nth-child(n+2) { width: 14%; }
+  .compare-changed-table th:nth-child(1) { width: 58%; }
+  .compare-changed-table th:nth-child(2) { width: 42%; }
+  .advisories-table, .certs-table { table-layout: fixed; }
+  .advisories-table td, .certs-table td { font-size: 9.5px !important; line-height: 1.35 !important; }
+  .advisories-table td *, .certs-table td * { font-size: inherit !important; line-height: inherit !important; }
+  .advisories-table th:nth-child(1) { width: 14%; }
+  .advisories-table th:nth-child(2) { width: 56%; }
+  .advisories-table th:nth-child(3) { width: 8%; }
+  .advisories-table th:nth-child(4) { width: 22%; }
+  .certs-table th:nth-child(1) { width: 26%; }
+  .certs-table th:nth-child(2) { width: 16%; }
+  .certs-table th:nth-child(3) { width: 11%; }
+  .certs-table th:nth-child(4) { width: 11%; }
+  .certs-table th:nth-child(5) { width: 36%; }
+  .rule-shadow-table, .objects-table, .dag-table { table-layout: fixed; }
+  .rule-shadow-table td, .objects-table td, .dag-table td { font-size: 9.5px !important; line-height: 1.35 !important; }
+  .rule-shadow-table td *, .objects-table td *, .dag-table td * { font-size: inherit !important; line-height: inherit !important; }
+  .dag-table th:nth-child(1) { width: 30%; }
+  .dag-table th:nth-child(2) { width: 22%; }
+  .dag-table th:nth-child(3) { width: 48%; }
+  .nat-table { table-layout: fixed; }
+  .nat-table td { font-size: 9.5px !important; line-height: 1.35 !important; overflow-wrap: anywhere; }
+  .nat-table td * { font-size: inherit !important; line-height: inherit !important; }
+  .nat-table th:nth-child(1) { width: 14%; }
+  .nat-table th:nth-child(2) { width: 12%; }
+  .nat-table th:nth-child(3) { width: 11%; }
+  .nat-table th:nth-child(4) { width: 11%; }
+  .nat-table th:nth-child(5) { width: 8%; }
+  .nat-table th:nth-child(6) { width: 14%; }
+  .nat-table th:nth-child(7) { width: 12%; }
+  .nat-table th:nth-child(8) { width: 18%; }
+  .rule-shadow-table th:nth-child(1) { width: 38%; }
+  .rule-shadow-table th:nth-child(2) { width: 38%; }
+  .rule-shadow-table th:nth-child(3) { width: 24%; }
+  .objects-table th:nth-child(1) { width: 22%; }
+  .objects-table th:nth-child(2) { width: 14%; }
+  .objects-table th:nth-child(3) { width: 64%; }
+  /* SCM findings a core rule already covers are listed once, in the Palo Alto SCM section. */
+  .print-dup { display: none !important; }
+  /* Says plainly that the printed findings list is a filtered subset. */
+  .print-filter-note {
+    border: 1.5px solid var(--sev-warning-text); border-radius: 6px; padding: 8px 12px;
+    font-size: 11px; line-height: 16px; color: var(--text-primary); break-inside: avoid;
+  }
+  .cover-filter-note { border: 1.5px solid var(--sev-warning-text); border-radius: 6px; padding: 8px 12px; }
+  /* GlobalProtect tables hold short values, not long object names: wrap between words. */
+  .gp-table td { overflow-wrap: break-word; }
+  .scm-table th:nth-child(1) { width: 7%; }
+  .scm-table th:nth-child(2) { width: 15%; }
+  .scm-table th:nth-child(3) { width: 33%; }
+  .scm-table th:nth-child(4) { width: 11%; }
+  .scm-table th:nth-child(5) { width: 18%; }
+  .scm-table th:nth-child(6) { width: 16%; }
+
+  thead { display: table-header-group; }
+
+  .print-cover {
+    page: cover;
+    break-after: page;
+    position: relative;
+    width: 8.5in;
+    height: 11in;
+    overflow: hidden;
+    background: #fff;
+    margin: 0 -14mm;
+  }
+  .cover-page { display: flex; flex-direction: column; height: 100%; padding: 0.75in 0.8in 0.65in; box-sizing: border-box; }
+  .cover-tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; break-inside: avoid; }
+  .cover-band { position: absolute; left: 0; right: 0; bottom: 0; height: 0.14in; background: var(--brand); }
+}
+
+/* Notes: the entry or endnote just navigated to. */
+.note-flash { animation: note-flash 1.6s ease-out; }
+@keyframes note-flash {
+  0%, 40% { background-color: var(--accent-soft); }
+  100% { background-color: transparent; }
+}
+/* Note markers: a superscript number that doesn't open up the line spacing. */
+.note-ref-sup { font-size: 0.72em; line-height: 0; position: relative; top: -0.5em; vertical-align: baseline; }
+@media print {
+  /* Prints as a plain superscript number pointing to the Notes appendix. */
+  .note-ref { color: var(--text-primary) !important; text-decoration: none !important; }
+}

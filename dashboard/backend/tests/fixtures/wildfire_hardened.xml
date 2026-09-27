@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: WildFire device settings and profiles the way the ported Palo Alto SCM checks want
+  them (#109-#115, #117, #204, #205, #251, #361, #347, #363). Element names come from SCM failed-field
+  names (file_size_limit, report_grayware_file, cloud_inline_analysis) and the pan-os-codegen antivirus
+  spec (wfrt-hold-mode).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <setting>
+          <wildfire>
+            <file-size-limit>
+              <entry name="pe"><size-limit>16</size-limit></entry>
+              <entry name="pdf"><size-limit>3072</size-limit></entry>
+              <entry name="MacOSX"><size-limit>10</size-limit></entry>
+              <entry name="archive"><size-limit>50</size-limit></entry>
+            </file-size-limit>
+            <report-grayware-file>yes</report-grayware-file>
+          </wildfire>
+        </setting>
+      </deviceconfig>
+      <vsys>
+        <entry name="vsys1">
+          <profiles>
+            <virus><entry name="av-strict"><wfrt-hold-mode>yes</wfrt-hold-mode></entry></virus>
+            <wildfire-analysis><entry name="wf-all"><rules><entry name="all"><application><member>any</member></application><file-type><member>any</member></file-type><direction>both</direction><analysis>public-cloud</analysis></entry></rules><cloud-inline-analysis>yes</cloud-inline-analysis></entry></wildfire-analysis>
+          </profiles>
+          <rulebase>
+            <security><rules><entry name="allow-web">
+              <from><member>trust</member></from><to><member>untrust</member></to>
+              <source><member>any</member></source><destination><member>any</member></destination>
+              <application><member>web-browsing</member></application><service><member>application-default</member></service>
+              <action>allow</action>
+              <profile-setting><profiles><virus><member>av-strict</member></virus><wildfire-analysis><member>wf-all</member></wildfire-analysis></profiles></profile-setting>
+            </entry></rules></security>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

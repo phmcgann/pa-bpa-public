@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture for the threat-intelligence blocking checks (Palo Alto Networks Internet
+  Gateway Best Practice Security Policy, steps 1 and 3). Built-in lists are referenced by their
+  config names (panw-*-ip-list) directly or through a custom predefined-ip external list.
+
+  Covered: known-malicious both ways (outbound via a custom EDL wrapping the built-in list),
+  high-risk inbound only, QUIC via an application group. Not covered: high-risk outbound,
+  bulletproof (its only rule is disabled), Tor (only an allow rule and a negated-source rule).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig><system><hostname>edge-fw</hostname></system></deviceconfig>
+      <vsys>
+        <entry name="vsys1">
+          <external-list>
+            <entry name="corp-known-bad"><type><predefined-ip><url>panw-known-ip-list</url></predefined-ip></type></entry>
+            <entry name="partner-feed"><type><ip><url>https://feeds.example.com/ips.txt</url></ip></type></entry>
+          </external-list>
+          <application-group>
+            <entry name="evasive-apps"><members><member>quic</member><member>tor</member></members></entry>
+          </application-group>
+          <rulebase>
+            <security>
+              <rules>
+                <entry name="block-known-inbound">
+                  <from><member>untrust</member></from><to><member>any</member></to>
+                  <source><member>panw-known-ip-list</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action>
+                </entry>
+                <entry name="block-known-outbound">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>corp-known-bad</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>drop</action>
+                </entry>
+                <entry name="block-highrisk-inbound">
+                  <from><member>untrust</member></from><to><member>any</member></to>
+                  <source><member>panw-highrisk-ip-list</member><member>partner-feed</member></source>
+                  <destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>reset-both</action>
+                </entry>
+                <entry name="block-bulletproof-old">
+                  <from><member>any</member></from><to><member>any</member></to>
+                  <source><member>panw-bulletproof-ip-list</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action><disabled>yes</disabled>
+                </entry>
+                <entry name="not-tor">
+                  <from><member>untrust</member></from><to><member>any</member></to>
+                  <source><member>panw-torexit-ip-list</member></source><negate-source>yes</negate-source>
+                  <destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action>
+                </entry>
+                <entry name="block-evasive">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>any</member></destination>
+                  <application><member>evasive-apps</member></application><service><member>application-default</member></service>
+                  <action>deny</action>
+                </entry>
+                <entry name="allow-tor-research">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>panw-torexit-ip-list</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>allow</action>
+                </entry>
+              </rules>
+            </security>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

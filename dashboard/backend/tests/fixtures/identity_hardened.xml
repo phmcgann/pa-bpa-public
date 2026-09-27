@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: authentication, User-ID, Authentication Portal, SSL/TLS, log forwarding and GlobalProtect
+  content-update settings the way the ported Palo Alto SCM checks want them (#63, #154, #155, #159, #164,
+  #165, #172-#174, #177, #194, #195, #199, #223). Element names follow the pan-os-codegen specs and SCM
+  API/failed-field names.
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <shared>
+    <ssl-tls-service-profile>
+      <entry name="strong-tls"><protocol-settings><min-version>tls1-2</min-version><max-version>max</max-version></protocol-settings></entry>
+    </ssl-tls-service-profile>
+    <admin-role><entry name="ops-role"><role><device><cli>deviceadmin</cli></device></role></entry></admin-role>
+    <authentication-profile>
+      <entry name="corp-radius"><method><radius><server-profile>corp-radius</server-profile></radius></method><lockout><failed-attempts>5</failed-attempts></lockout><allow-list><member>all</member></allow-list></entry>
+      <entry name="corp-ldap"><method><ldap><server-profile>corp-ldap</server-profile></ldap></method><allow-list><member>all</member></allow-list></entry>
+    </authentication-profile>
+    <authentication-sequence><entry name="admin-seq"><authentication-profiles><member>corp-radius</member><member>corp-ldap</member></authentication-profiles></entry></authentication-sequence>
+    <server-profile>
+      <ldap><entry name="corp-ldap"><server><entry name="dc1"><address>192.0.2.11</address></entry><entry name="dc2"><address>192.0.2.12</address></entry></server><ssl>yes</ssl><verify-server-certificate>yes</verify-server-certificate></entry></ldap>
+    </server-profile>
+    <log-settings>
+      <syslog><entry name="siem"><server><entry name="s1"><server>192.0.2.50</server><transport>SSL</transport></entry></server></entry></syslog>
+      <system><match-list><entry name="all-system"><filter>All Logs</filter><send-syslog><member>siem</member></send-syslog></entry></match-list></system>
+    </log-settings>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <secure-conn-client><certificate-type><local><certificate>fw-client</certificate><certificate-profile>pki</certificate-profile></local></certificate-type></secure-conn-client>
+          <update-schedule>
+            <global-protect-datafile><recurring><hourly><at>10</at><action>download-and-install</action></hourly></recurring></global-protect-datafile>
+            <global-protect-clientless-vpn><recurring><hourly><at>20</at><action>download-and-install</action></hourly></recurring></global-protect-clientless-vpn>
+          </update-schedule>
+        </system>
+      </deviceconfig>
+      <vsys>
+        <entry name="vsys1">
+          <captive-portal><mode><redirect/></mode><timer>60</timer><idle-timer>15</idle-timer><ssl-tls-service-profile>strong-tls</ssl-tls-service-profile></captive-portal>
+          <user-id-collector><setting><enable-probing>no</enable-probing><enable-mapping-timeout>yes</enable-mapping-timeout></setting></user-id-collector>
+          <global-protect><global-protect-portal><entry name="corp-portal"/></global-protect-portal></global-protect>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

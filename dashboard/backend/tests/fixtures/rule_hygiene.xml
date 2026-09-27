@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: a rulebase the way the ported Palo Alto SCM security-rule checks want it (#6, #9,
+  #12, #13, #16, #249, #366-#368, #370): logged default rules, User-ID on the user zone, a New App-ID rule,
+  and advanced profiles in use. Element names follow the pan-os-codegen / SCM API specs
+  (default-security-rules, enable-user-identification, application-filter new-appid).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="users"><network><layer3><member>ethernet1/2</member></layer3></network><enable-user-identification>yes</enable-user-identification></entry>
+            <entry name="untrust"><network><layer3><member>ethernet1/1</member></layer3></network></entry>
+          </zone>
+          <application-filter><entry name="new-apps"><new-appid>yes</new-appid></entry></application-filter>
+          <profiles>
+            <url-filtering><entry name="url"><cloud-inline-cat>yes</cloud-inline-cat></entry></url-filtering>
+            <vulnerability><entry name="vp"><mica-engine-vulnerability-enabled><entry name="HTTP"><inline-policy-action>reset-both</inline-policy-action></entry></mica-engine-vulnerability-enabled><cloud-inline-analysis>yes</cloud-inline-analysis></entry></vulnerability>
+            <spyware><entry name="as"><mica-engine-spyware-enabled><entry name="HTTP C2"><inline-policy-action>reset-both</inline-policy-action></entry></mica-engine-spyware-enabled><cloud-inline-analysis>yes</cloud-inline-analysis></entry></spyware>
+            <wildfire-analysis><entry name="wf"><cloud-inline-analysis>yes</cloud-inline-analysis></entry></wildfire-analysis>
+          </profiles>
+          <rulebase>
+            <security><rules>
+              <entry name="staff-web">
+                <from><member>users</member></from><to><member>untrust</member></to>
+                <source><member>any</member></source><source-user><member>corp\staff</member></source-user>
+                <destination><member>any</member></destination>
+                <application><member>web-browsing</member></application><service><member>application-default</member></service>
+                <action>allow</action><log-end>yes</log-end>
+                <profile-setting><profiles><url-filtering><member>url</member></url-filtering><vulnerability><member>vp</member></vulnerability><spyware><member>as</member></spyware><wildfire-analysis><member>wf</member></wildfire-analysis></profiles></profile-setting>
+              </entry>
+              <entry name="new-appids">
+                <from><member>users</member></from><to><member>untrust</member></to>
+                <source><member>any</member></source><source-user><member>any</member></source-user><destination><member>any</member></destination>
+                <application><member>new-apps</member></application><service><member>application-default</member></service>
+                <action>allow</action>
+              </entry>
+            </rules></security>
+            <default-security-rules><rules>
+              <entry name="intrazone-default"><action>allow</action><log-end>yes</log-end></entry>
+              <entry name="interzone-default"><action>deny</action><log-end>yes</log-end></entry>
+            </rules></default-security-rules>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

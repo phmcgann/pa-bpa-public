@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: device and session settings the way the ported Palo Alto SCM checks want them
+  (#17, #21, #89, #97, #102, #104, #121, #122-#134, #142, #197, #213, #246). Tests weaken one setting at a
+  time. Element names come from SCM failed-field names and its device-settings API spec.
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>fw-device</hostname>
+          <server-verification>yes</server-verification>
+          <service><disable-http>yes</disable-http><disable-telnet>yes</disable-telnet></service>
+          <device-telemetry><device-health-performance>yes</device-health-performance><product-usage>yes</product-usage><threat-prevention>yes</threat-prevention></device-telemetry>
+        </system>
+        <setting>
+          <management>
+            <enable-certificate-expiration-check>yes</enable-certificate-expiration-check>
+            <enable-log-high-dp-load>yes</enable-log-high-dp-load>
+          </management>
+          <session>
+            <timeout-tcp>3600</timeout-tcp>
+            <timeout-udp>30</timeout-udp>
+            <accelerated-aging-enable>yes</accelerated-aging-enable>
+            <packet-buffer-protection-enable>yes</packet-buffer-protection-enable>
+          </session>
+        </setting>
+        <high-availability>
+          <enabled>yes</enabled>
+          <group><peer-ip>10.255.0.2</peer-ip><election-option><timers><recommended/></timers></election-option></group>
+        </high-availability>
+      </deviceconfig>
+      <network>
+        <tunnel><gre><entry name="gre-dc"><tunnel-interface>tunnel.5</tunnel-interface><keep-alive><enable>yes</enable></keep-alive></entry></gre></tunnel>
+      </network>
+      <vsys>
+        <entry name="vsys1">
+          <rulebase>
+            <pbf><rules><entry name="isp2">
+              <from><zone><member>trust</member></zone></from><source><member>any</member></source><destination><member>any</member></destination>
+              <action><forward><egress-interface>ethernet1/3</egress-interface><monitor><profile>default</profile><ip-address>198.51.100.1</ip-address></monitor></forward></action>
+            </entry></rules></pbf>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

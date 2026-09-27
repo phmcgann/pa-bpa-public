@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: an active/passive HA pair set up the way every ha_* configuration rule
+  recommends. Tests weaken one setting at a time. Element names follow Palo Alto SCM failed-field
+  names for the HA checks (group.peer_ip_backup, interface.ha1.encryption.enabled,
+  group.state_synchronization.ha2_keep_alive.enabled, group.mode.active_passive.passive_link_state,
+  group.monitoring.link_monitoring.link_group, group.monitoring.path_monitoring.path_group.*).
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system><hostname>fw-ha-a</hostname></system>
+        <high-availability>
+          <enabled>yes</enabled>
+          <group>
+            <group-id>7</group-id>
+            <peer-ip>10.255.0.2</peer-ip>
+            <peer-ip-backup>10.255.1.2</peer-ip-backup>
+            <mode><active-passive><passive-link-state>auto</passive-link-state></active-passive></mode>
+            <configuration-synchronization><enabled>yes</enabled></configuration-synchronization>
+            <state-synchronization>
+              <enabled>yes</enabled>
+              <ha2-keep-alive><enabled>yes</enabled><action>log-only</action></ha2-keep-alive>
+            </state-synchronization>
+            <election-option>
+              <heartbeat-backup>yes</heartbeat-backup>
+              <preemptive>no</preemptive>
+              <timers><recommended/></timers>
+            </election-option>
+            <monitoring>
+              <link-monitoring>
+                <enabled>yes</enabled>
+                <link-group>
+                  <entry name="data-links"><enabled>yes</enabled><failure-condition>any</failure-condition>
+                    <interface><member>ethernet1/1</member><member>ethernet1/2</member></interface></entry>
+                </link-group>
+              </link-monitoring>
+              <path-monitoring>
+                <enabled>yes</enabled>
+                <path-group><virtual-router><entry name="default"><destination-ip><entry name="upstream"/></destination-ip></entry></virtual-router></path-group>
+              </path-monitoring>
+            </monitoring>
+          </group>
+          <interface>
+            <ha1><port>ha1-a</port><encryption><enabled>yes</enabled></encryption></ha1>
+            <ha1-backup><port>ha1-b</port></ha1-backup>
+            <ha2><port>hsci</port></ha2>
+          </interface>
+        </high-availability>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>

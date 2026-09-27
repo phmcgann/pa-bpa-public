@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture for the GlobalProtect checks. Element names and nesting follow the
+  pan-os-codegen specs (network/globalprotect-portal.yaml, device/globalprotect-gateway.yaml,
+  objects/profiles/ssl-tls-service.yaml, device/authentication-profile.yaml).
+
+  "hardened-*" objects follow every recommendation; "legacy-*" objects break them.
+  The legacy portal's "defaults" agent config sets nothing, so PAN-OS defaults apply
+  (User-logon, Allow user to disable, no timeout, enforcement off, HIP collection on).
+  SSL/TLS, certificate and authentication profiles sit in shared; one lives in the vsys.
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <shared>
+    <ssl-tls-service-profile>
+      <entry name="tls-strong"><certificate>gp-cert</certificate><protocol-settings><min-version>tls1-2</min-version><max-version>max</max-version></protocol-settings></entry>
+      <entry name="tls-weak"><certificate>gp-cert</certificate><protocol-settings><max-version>max</max-version><enc-algo-3des>yes</enc-algo-3des><auth-algo-sha1>yes</auth-algo-sha1></protocol-settings></entry>
+    </ssl-tls-service-profile>
+    <certificate-profile>
+      <entry name="cp-ocsp"><CA><entry name="corp-ca"/></CA><use-ocsp>yes</use-ocsp><block-expired-cert>yes</block-expired-cert></entry>
+      <entry name="cp-no-revocation"><CA><entry name="corp-ca"/></CA><use-crl>no</use-crl><use-ocsp>no</use-ocsp></entry>
+    </certificate-profile>
+    <authentication-profile>
+      <entry name="ap-saml"><method><saml-idp><server-profile>okta</server-profile></saml-idp></method></entry>
+      <entry name="ap-ldap"><method><ldap><server-profile>corp-ldap</server-profile></ldap></method></entry>
+      <entry name="ap-local-mfa"><method><local-database/></method><multi-factor-auth><mfa-enable>yes</mfa-enable></multi-factor-auth><lockout><failed-attempts>5</failed-attempts><lockout-time>30</lockout-time></lockout></entry>
+    </authentication-profile>
+    <authentication-sequence>
+      <entry name="seq-ldap-then-local"><authentication-profiles><member>ap-ldap</member><member>ap-local-vsys</member></authentication-profiles></entry>
+    </authentication-sequence>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig><system><hostname>gp-fw</hostname></system></deviceconfig>
+      <vsys>
+        <entry name="vsys1">
+          <authentication-profile>
+            <entry name="ap-local-vsys"><method><local-database/></method></entry>
+          </authentication-profile>
+          <global-protect>
+            <global-protect-portal>
+              <entry name="hardened-portal">
+                <portal-config>
+                  <local-address><interface>ethernet1/1</interface></local-address>
+                  <ssl-tls-service-profile>tls-strong</ssl-tls-service-profile>
+                  <client-auth><entry name="saml"><os>Any</os><authentication-profile>ap-saml</authentication-profile></entry></client-auth>
+                </portal-config>
+                <client-config>
+                  <configs>
+                    <entry name="always-on">
+                      <gateways>
+                        <internal><list><entry name="int-gw"><ip><ipv4>10.0.0.1</ipv4></ip></entry></list></internal>
+                        <external><list><entry name="ext-gw"><fqdn>vpn.example.com</fqdn></entry></list></external>
+                      </gateways>
+                      <internal-host-detection><ip-address>10.0.0.53</ip-address><hostname>dc1.corp.example.com</hostname></internal-host-detection>
+                      <hip-collection><collect-hip-data>yes</collect-hip-data></hip-collection>
+                      <authentication-override><accept-cookie><cookie-lifetime><lifetime-in-hours>8</lifetime-in-hours></cookie-lifetime></accept-cookie></authentication-override>
+                      <gp-app-config><config>
+                        <entry name="connect-method"><value><member>user-logon</member></value></entry>
+                        <entry name="enforce-globalprotect"><value><member>yes</member></value></entry>
+                        <entry name="agent-user-override"><value><member>with-ticket</member></value></entry>
+                      </config></gp-app-config>
+                    </entry>
+                  </configs>
+                  <root-ca><entry name="corp-ca"><install-in-cert-store>yes</install-in-cert-store></entry></root-ca>
+                </client-config>
+                <satellite-config>
+                  <configs><entry name="branches"><gateways><entry name="hq"><fqdn>vpn.example.com</fqdn></entry></gateways></entry></configs>
+                  <root-ca><entry name="corp-ca"/></root-ca>
+                </satellite-config>
+              </entry>
+              <entry name="legacy-portal">
+                <portal-config>
+                  <local-address><interface>ethernet1/2</interface></local-address>
+                  <ssl-tls-service-profile>tls-weak</ssl-tls-service-profile>
+                  <client-auth><entry name="ldap"><os>Any</os><authentication-profile>seq-ldap-then-local</authentication-profile></entry></client-auth>
+                </portal-config>
+                <client-config>
+                  <configs>
+                    <entry name="defaults">
+                      <gateways><external><list><entry name="ext-gw"><fqdn>vpn2.example.com</fqdn></entry></list></external></gateways>
+                    </entry>
+                    <entry name="contractors">
+                      <gateways>
+                        <internal><list><entry name="int-gw"><ip><ipv4>10.0.0.1</ipv4></ip></entry></list></internal>
+                        <external><list><entry name="ext-gw"><fqdn>vpn2.example.com</fqdn></entry></list></external>
+                      </gateways>
+                      <hip-collection><collect-hip-data>no</collect-hip-data></hip-collection>
+                      <authentication-override><accept-cookie><cookie-lifetime><lifetime-in-days>30</lifetime-in-days></cookie-lifetime></accept-cookie></authentication-override>
+                      <gp-app-config><config>
+                        <entry name="connect-method"><value><member>on-demand</member></value></entry>
+                      </config></gp-app-config>
+                    </entry>
+                  </configs>
+                </client-config>
+                <satellite-config>
+                  <configs><entry name="stores"><gateways><entry name="hq"><fqdn>vpn2.example.com</fqdn></entry></gateways></entry></configs>
+                </satellite-config>
+              </entry>
+            </global-protect-portal>
+            <global-protect-gateway>
+              <entry name="hardened-gateway">
+                <local-address><interface>ethernet1/1</interface></local-address>
+                <ssl-tls-service-profile>tls-strong</ssl-tls-service-profile>
+                <certificate-profile>cp-ocsp</certificate-profile>
+                <client-auth><entry name="local"><os>Any</os><authentication-profile>ap-local-mfa</authentication-profile></entry></client-auth>
+                <tunnel-mode>yes</tunnel-mode>
+                <remote-user-tunnel-configs>
+                  <entry name="full-tunnel"><ip-pool><member>198.51.100.0/24</member></ip-pool>
+                    <split-tunneling><access-route><member>0.0.0.0/0</member></access-route><exclude-access-route><member>203.0.113.10/32</member></exclude-access-route></split-tunneling></entry>
+                  <entry name="no-routes"><ip-pool><member>198.51.101.0/24</member></ip-pool></entry>
+                </remote-user-tunnel-configs>
+              </entry>
+              <entry name="legacy-gateway">
+                <local-address><interface>ethernet1/2</interface></local-address>
+                <ssl-tls-service-profile>tls-weak</ssl-tls-service-profile>
+                <certificate-profile>cp-no-revocation</certificate-profile>
+                <client-auth><entry name="ldap"><os>Any</os><authentication-profile>ap-ldap</authentication-profile></entry></client-auth>
+                <tunnel-mode>yes</tunnel-mode>
+                <remote-user-tunnel-configs>
+                  <entry name="split"><ip-pool><member>198.51.102.0/24</member></ip-pool>
+                    <split-tunneling><access-route><member>10.0.0.0/8</member><member>172.16.0.0/12</member></access-route></split-tunneling>
+                    <authentication-override><accept-cookie/></authentication-override></entry>
+                </remote-user-tunnel-configs>
+              </entry>
+            </global-protect-gateway>
+          </global-protect>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

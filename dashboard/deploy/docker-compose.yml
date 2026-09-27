@@ -1,0 +1,74 @@
+# PA BPA Dashboard — release stack.
+#
+# Runs the published images from GitHub Container Registry; nothing is built on your
+# machine. The installers (install.sh / install.ps1) download this file together with
+# the Caddyfile next to it and create the .env it reads. Upgrading is re-running the
+# installer, which swaps in the newer release's copy of this file.
+#
+# By default the dashboard is only reachable from this computer, at http://localhost:8080.
+# To serve it to other machines on a real domain with HTTPS, see "Deploying on a server"
+# in docs/INSTALL.md.
+
+name: pa-bpa
+
+services:
+  db:
+    image: postgres:16.9-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ghcr.io/phmcgann/pa-bpa-backend:${PA_BPA_VERSION:-__VERSION__}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Optional: Palo Alto Strata Cloud Manager BPA. Leave empty to disable.
+      SCM_CLIENT_ID: ${SCM_CLIENT_ID:-}
+      SCM_CLIENT_SECRET: ${SCM_CLIENT_SECRET:-}
+      SCM_TSG_ID: ${SCM_TSG_ID:-}
+      # Palo Alto Networks security advisories for PAN-OS ("off" where there's no internet).
+      PAN_ADVISORY_FEED: ${PAN_ADVISORY_FEED:-on}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/phmcgann/pa-bpa-frontend:${PA_BPA_VERSION:-__VERSION__}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      # ":80" serves plain HTTP to whoever reaches the port (safe, because the ports below
+      # are bound to this computer only). On a server, set your domain name here.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
+    ports:
+      - "${HTTP_BIND:-127.0.0.1:8080}:80"
+      - "${HTTPS_BIND:-127.0.0.1:8443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

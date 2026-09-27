@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!--
+  Synthetic fixture: security profiles, decryption profiles and a Log Forwarding profile set up the way the
+  ported Palo Alto SCM checks want them (#31, #32, #35, #36, #41, #44, #51-#53, #56, #59, #196, #227,
+  #259, #260, #273, #346, #372). Tests weaken one setting at a time. Element names follow the
+  pan-os-codegen specs (antivirus, url-filtering, decryption-profile, log-forwarding) and SCM
+  failed-field names.
+-->
+<config version="11.1.0" urldb="paloaltonetworks">
+  <shared>
+    <log-settings>
+      <profiles>
+        <entry name="lf-all">
+          <match-list>
+            <entry name="traffic"><log-type>traffic</log-type><filter>All Logs</filter><send-to-panorama>yes</send-to-panorama></entry>
+            <entry name="threat"><log-type>threat</log-type><filter>All Logs</filter><send-to-panorama>yes</send-to-panorama></entry>
+            <entry name="wildfire"><log-type>wildfire</log-type><filter>All Logs</filter><send-to-panorama>yes</send-to-panorama></entry>
+            <entry name="url"><log-type>url</log-type><filter>All Logs</filter><send-to-panorama>yes</send-to-panorama></entry>
+            <entry name="auth"><log-type>auth</log-type><filter>All Logs</filter><send-syslog><member>siem</member></send-syslog></entry>
+          </match-list>
+        </entry>
+      </profiles>
+    </log-settings>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <profiles>
+            <virus><entry name="av"><packet-capture>no</packet-capture></entry></virus>
+            <spyware><entry name="as"/></spyware>
+            <vulnerability><entry name="vp"/></vulnerability>
+            <url-filtering>
+              <entry name="url">
+                <alert><member>news</member></alert>
+                <block><member>malware</member><member>phishing</member></block>
+                <credential-enforcement><mode><domain-credentials/></mode><alert><member>news</member></alert><block><member>unknown</member></block></credential-enforcement>
+                <log-container-page-only>no</log-container-page-only>
+                <cloud-inline-cat>yes</cloud-inline-cat>
+              </entry>
+            </url-filtering>
+            <decryption>
+              <entry name="dp-inbound">
+                <ssl-inbound-proxy>
+                  <block-unsupported-version>yes</block-unsupported-version><block-unsupported-cipher>yes</block-unsupported-cipher>
+                  <block-if-no-resource>yes</block-if-no-resource><block-if-hsm-unavailable>yes</block-if-hsm-unavailable>
+                  <block-tls13-downgrade-no-resource>yes</block-tls13-downgrade-no-resource>
+                </ssl-inbound-proxy>
+                <ssh-proxy>
+                  <block-unsupported-version>yes</block-unsupported-version><block-unsupported-alg>yes</block-unsupported-alg>
+                  <block-ssh-errors>yes</block-ssh-errors><block-if-no-resource>yes</block-if-no-resource>
+                </ssh-proxy>
+                <ssl-protocol-settings><min-version>tls1-2</min-version><auth-algo-md5>no</auth-algo-md5><auth-algo-sha1>no</auth-algo-sha1></ssl-protocol-settings>
+              </entry>
+              <entry name="dp-ssh">
+                <ssh-proxy>
+                  <block-unsupported-version>yes</block-unsupported-version><block-unsupported-alg>yes</block-unsupported-alg>
+                  <block-ssh-errors>yes</block-ssh-errors><block-if-no-resource>yes</block-if-no-resource>
+                </ssh-proxy>
+                <ssl-inbound-proxy>
+                  <block-unsupported-version>yes</block-unsupported-version><block-unsupported-cipher>yes</block-unsupported-cipher>
+                  <block-if-no-resource>yes</block-if-no-resource><block-if-hsm-unavailable>yes</block-if-hsm-unavailable>
+                  <block-tls13-downgrade-no-resource>yes</block-tls13-downgrade-no-resource>
+                </ssl-inbound-proxy>
+                <ssl-protocol-settings><min-version>tls1-2</min-version><auth-algo-sha1>no</auth-algo-sha1></ssl-protocol-settings>
+              </entry>
+            </decryption>
+          </profiles>
+          <rulebase>
+            <security><rules><entry name="allow-web">
+              <from><member>trust</member></from><to><member>untrust</member></to>
+              <source><member>any</member></source><destination><member>any</member></destination>
+              <application><member>web-browsing</member></application><service><member>application-default</member></service>
+              <action>allow</action><log-setting>lf-all</log-setting>
+              <profile-setting><profiles><virus><member>av</member></virus><spyware><member>as</member></spyware><vulnerability><member>vp</member></vulnerability><url-filtering><member>url</member></url-filtering></profiles></profile-setting>
+            </entry></rules></security>
+            <decryption><rules>
+              <entry name="inbound-web"><action>decrypt</action><type><ssl-inbound-inspection><certificates><member>web-cert</member></certificates></ssl-inbound-inspection></type><profile>dp-inbound</profile></entry>
+              <entry name="ssh-admin"><action>decrypt</action><type><ssh-proxy/></type><profile>dp-ssh</profile></entry>
+            </rules></decryption>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>
