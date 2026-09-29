@@ -125,9 +125,14 @@ def test_decryption_profile_weak_tls(keys):
     # Unset min version (defaults to TLSv1.0) and explicit TLSv1.1 are both flagged
     assert "decryption_profile_weak_tls:weak-decrypt" in keys
     assert "decryption_profile_weak_tls:tls11-decrypt" in keys
-    # Used only by a disabled rule / a no-decrypt rule → not checked
-    assert "decryption_profile_weak_tls:only-on-disabled-rule" not in keys
-    assert "decryption_profile_weak_tls:nd-profile" not in keys
+    # Every profile is graded, used or not, as Palo Alto SCM does (check #57)
+    assert "decryption_profile_weak_tls:only-on-disabled-rule" in keys
+
+
+def test_unused_decryption_profile_says_so(data):
+    msg = next(f["message"] for f in run_rules(data, {})
+               if f["finding_key"] == "decryption_profile_weak_tls:only-on-disabled-rule")
+    assert "not used by any decryption rule" in msg
 
 
 def test_decryption_profile_weak_tls_message_explains_default(data):
@@ -140,9 +145,8 @@ def test_decryption_profile_cert_checks_disabled(keys):
     assert "decryption_profile_cert_checks_disabled:weak-decrypt:forward_proxy_block_expired" in keys
     # Explicitly yes → fine
     assert "decryption_profile_cert_checks_disabled:weak-decrypt:forward_proxy_block_untrusted" not in keys
-    # tls11-decrypt says no, but it's only used by an inbound-inspection rule — forward-proxy settings don't apply
-    assert "decryption_profile_cert_checks_disabled:tls11-decrypt:forward_proxy_block_expired" not in keys
-    assert "decryption_profile_cert_checks_disabled:only-on-disabled-rule:forward_proxy_block_expired" not in keys
+    # Every profile's forward-proxy settings are graded, used by a forward-proxy rule or not (SCM check #55)
+    assert "decryption_profile_cert_checks_disabled:tls11-decrypt:forward_proxy_block_expired" in keys
 
 
 def test_parses_no_decryption_cert_settings(data):

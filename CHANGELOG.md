@@ -3,6 +3,20 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.1] - 2026-09-29
+
+### Checks
+- Closer to Palo Alto SCM's results, based on a real SCM run:
+  - Every decryption and Log Forwarding profile is graded whether or not a rule uses it, as the documentation already said.
+  - New check: SSL Forward Proxy decryption profiles that let sessions with unknown certificate status, check timeouts, unsupported versions or ciphers, or resource failures through (SCM check 55).
+  - A single NTP server with no secondary is flagged.
+  - A GlobalProtect SSL/TLS service profile that caps the maximum version below "Max" is flagged.
+  - PAN-OS defaults are applied when a setting is missing: "Log container page only" is on, and a RADIUS profile with no protocol uses CHAP.
+  - RADIUS, LDAP and TACACS+ server profiles defined in a vsys are checked, not just shared ones.
+  - A Log Forwarding profile that only sends email, SNMP traps or HTTP is flagged: those don't store the logs.
+- The SCM coverage view marks results about unused PAN-OS built-in profiles, and HA settings on a firewall without HA, and disabled PBF rules, as not applicable instead of listing them as gaps.
+- Where a core rule deliberately differs from SCM (a RADIUS profile using PEAP, GlobalProtect settings that only matter with an always-on connect method or both gateway types), the coverage view says so and why, instead of calling it a gap.
+
 ## [1.0.0] - 2026-09-26
 
 First public release.

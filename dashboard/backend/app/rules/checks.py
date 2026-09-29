@@ -820,14 +820,15 @@ def check_decryption_profile_weak_tls(data: dict, thresholds: dict) -> list[dict
     if decryption is None:
         return []
     out = []
-    for profile, rule_names in _profiles_used_by(decryption, _active_decrypt_rules(decryption)):
+    for profile, rule_names in _decryption_profiles_for(data, None):
         if profile["min_version"] not in WEAK_TLS_VERSIONS:
             continue
         version = TLS_LABEL[profile["min_version"]]
         setting = version if profile["min_version_explicit"] else f"not set, which PAN-OS treats as {version}"
         out.append({
             "key": profile["name"],
-            "message": f"Decryption profile '{profile['name']}' (used by {', '.join(rule_names)}) allows "
+            "scm_object": {"type": "decryption_profile", "name": profile["name"]},
+            "message": f"Decryption profile '{profile['name']}' ({_decrypt_usage(rule_names)}) allows "
                        f"TLS below 1.2 — minimum version is {setting}",
             "recommendation": "Set the minimum protocol version to TLSv1.2 and the maximum to Max",
         })
@@ -838,9 +839,8 @@ def check_decryption_profile_cert_checks_disabled(data: dict, thresholds: dict) 
     decryption = data.get("decryption")
     if decryption is None:
         return []
-    forward_proxy_rules = [r for r in _active_decrypt_rules(decryption) if r["type"] == "ssl-forward-proxy"]
     out = []
-    for profile, rule_names in _profiles_used_by(decryption, forward_proxy_rules):
+    for profile, rule_names in _decryption_profiles_for(data, None):
         for field, label in [
             ("forward_proxy_block_expired", "expired certificates"),
             ("forward_proxy_block_untrusted", "untrusted issuers"),
@@ -848,7 +848,8 @@ def check_decryption_profile_cert_checks_disabled(data: dict, thresholds: dict) 
             if profile.get(field) is False:
                 out.append({
                     "key": f"{profile['name']}:{field}",
-                    "message": f"Decryption profile '{profile['name']}' (used by {', '.join(rule_names)}) "
+                    "scm_object": {"type": "decryption_profile", "name": profile["name"]},
+                    "message": f"Decryption profile '{profile['name']}' ({_decrypt_usage(rule_names)}) "
                                f"doesn't block sessions with {label}",
                     "recommendation": f"Enable 'Block sessions with {label}' under SSL Forward Proxy "
                                       "server certificate verification",
@@ -874,16 +875,20 @@ def check_decryption_no_decrypt_cert_checks(data: dict, thresholds: dict) -> lis
                 "recommendation": "Attach a No Decryption profile that blocks sessions with expired "
                                   "certificates and untrusted issuers",
             })
-    for profile, rule_names in _profiles_used_by(decryption, no_decrypt):
+    no_decrypt_use = dict((pr["name"], names) for pr, names in _profiles_used_by(decryption, no_decrypt))
+    for profile in decryption.get("profiles", []):
+        rule_names = no_decrypt_use.get(profile["name"], [])
         for field, label in [
             ("no_proxy_block_expired", "expired certificates"),
             ("no_proxy_block_untrusted", "untrusted issuers"),
         ]:
             if profile.get(field) is False:
+                usage = (f"used by no-decrypt rule(s) {', '.join(rule_names)}" if rule_names
+                         else "not used by any no-decrypt rule")
                 out.append({
                     "key": f"{profile['name']}:{field}",
-                    "message": f"Decryption profile '{profile['name']}' (used by no-decrypt rule(s) "
-                               f"{', '.join(rule_names)}) doesn't block sessions with {label}",
+                    "scm_object": {"type": "decryption_profile", "name": profile["name"]},
+                    "message": f"Decryption profile '{profile['name']}' ({usage}) doesn't block sessions with {label}",
                     "recommendation": f"Enable 'Block sessions with {label}' in the profile's No Decryption "
                                       "settings",
                 })
@@ -1170,12 +1175,18 @@ def check_gp_tls_below_1_2(data: dict, thresholds: dict) -> list[dict]:
         tls = obj.get("tls")
         if not tls or not tls.get("found"):
             continue
-        if TLS_RANK.get(tls["min_version"], 9) < TLS_RANK["tls1-2"]:
+        weak_min = TLS_RANK.get(tls["min_version"], 9) < TLS_RANK["tls1-2"]
+        capped = tls.get("max_version", "max") != "max"
+        if weak_min or capped:
+            problems = []
+            if weak_min:
+                problems.append(f"allows {GP_TLS_LABEL.get(tls['min_version'], tls['min_version'])} and above")
+            if capped:
+                problems.append(f"caps the maximum at {GP_TLS_LABEL.get(tls['max_version'], tls['max_version'])}")
             out.append({
                 "key": f"{kind}:{obj['name']}",
                 "scm_object": _scm_obj(kind, obj["name"]),
-                "message": f"{_where(kind, obj)} — SSL/TLS service profile '{tls['name']}' allows "
-                           f"{GP_TLS_LABEL.get(tls['min_version'], tls['min_version'])} and above",
+                "message": f"{_where(kind, obj)} — SSL/TLS service profile '{tls['name']}' {' and '.join(problems)}",
                 "recommendation": f"Set the minimum version on '{tls['name']}' to TLSv1.2 and the maximum to Max",
             })
     return out
@@ -1568,13 +1579,14 @@ def check_no_login_banner(data: dict, thresholds: dict) -> list[dict]:
 
 
 def check_no_ntp(data: dict, thresholds: dict) -> list[dict]:
-    if data.get("management", {}).get("ntp_primary"):
-        return []
-    return [{
-        "key": "global",
-        "message": "NTP not configured",
-        "recommendation": "Configure NTP servers to ensure accurate log timestamps",
-    }]
+    mgmt = data.get("management", {})
+    if not mgmt.get("ntp_primary"):
+        return [{"key": "global", "message": "NTP not configured",
+                 "recommendation": "Configure a primary and a secondary NTP server to keep log timestamps accurate"}]
+    if not mgmt.get("ntp_secondary"):
+        return [{"key": "no-secondary", "message": "Only one NTP server is configured",
+                 "recommendation": "Add a secondary NTP server so time stays accurate if the primary is unreachable"}]
+    return []
 
 
 # ── Site-to-site VPN ─────────────────────────────────────────────────────
@@ -2162,6 +2174,12 @@ def check_url_inline_categorization_off(data: dict, thresholds: dict) -> list[di
             if "cloud_inline_cat" in p["settings"] and not p["settings"]["cloud_inline_cat"]]
 
 
+FORWARD_CHECK_LABEL = {"block-unknown-cert": "unknown certificate status",
+                       "block-timeout-cert": "certificate status check timeouts",
+                       "block-unsupported-version": "unsupported versions", "block-unsupported-cipher": "unsupported ciphers",
+                       "block-client-cert": "client authentication", "block-if-no-resource": "sessions without resources",
+                       "block-if-hsm-unavailable": "HSM unavailable",
+                       "auto-include-altname": "no SAN (Append certificate's CN value to SAN is off)"}
 INBOUND_CHECK_LABEL = {"block-unsupported-version": "unsupported versions", "block-unsupported-cipher": "unsupported ciphers",
                        "block-if-no-resource": "sessions without resources", "block-if-hsm-unavailable": "HSM unavailable",
                        "block-tls13-downgrade-no-resource": "TLS 1.3 downgrade without resources"}
@@ -2200,6 +2218,12 @@ def _mode_checks_off(data: dict, rule_type: str, field: str, labels: dict, what:
     return out
 
 
+def check_decryption_forward_proxy_checks_off(data: dict, thresholds: dict) -> list[dict]:
+    return _mode_checks_off(data, "ssl-forward-proxy", "forward_checks", FORWARD_CHECK_LABEL,
+                            "forward-proxy sessions with", "Enable every SSL Forward Proxy block option in the "
+                            "profile except Strip ALPN")
+
+
 def check_decryption_inbound_checks_off(data: dict, thresholds: dict) -> list[dict]:
     return _mode_checks_off(data, "ssl-inbound-inspection", "inbound_checks", INBOUND_CHECK_LABEL,
                             "inbound sessions with", "Enable every SSL Inbound Inspection block option in the profile")
@@ -2226,7 +2250,9 @@ def check_decryption_weak_hmac(data: dict, thresholds: dict) -> list[dict]:
 SECURITY_LOG_TYPES = {"threat": "Threat", "wildfire": "WildFire", "url": "URL", "auth": "Authentication"}
 
 
-def _used_log_forwarding_profiles(data: dict) -> list[tuple[dict, list[str]]]:
+def _log_forwarding_profiles(data: dict) -> list[tuple[dict, list[str]]]:
+    """Every Log Forwarding profile, with the enabled security rules using it. Unused profiles are graded
+    too, as Palo Alto SCM does: an unused profile is one attach away from use."""
     profiles = data.get("log_forwarding_profiles")
     if profiles is None:
         return []
@@ -2234,16 +2260,23 @@ def _used_log_forwarding_profiles(data: dict) -> list[tuple[dict, list[str]]]:
     for r in data.get("security_rules", []):
         if r.get("log_setting") and r.get("disabled") != "yes":
             used.setdefault(r["log_setting"], []).append(r["name"])
-    return [(p, used[p["name"]]) for p in profiles if p["name"] in used]
+    return [(p, used.get(p["name"], [])) for p in profiles]
+
+
+def _lf_usage(rules: list[str]) -> str:
+    return f"used by {len(rules)} rule{'s' if len(rules) != 1 else ''}" if rules else "not used by any rule"
 
 
 def check_log_forwarding_profile_no_destination(data: dict, thresholds: dict) -> list[dict]:
     out = []
-    for p, rules in _used_log_forwarding_profiles(data):
-        if not any(m["destinations"] for m in p["lists"]):
+    for p, rules in _log_forwarding_profiles(data):
+        dests = [d for m in p["lists"] for d in m["destinations"]]
+        # Email, SNMP traps and HTTP notify someone but don't keep the logs (Palo Alto SCM check #51).
+        if not any(d == "panorama" or d.startswith("syslog:") for d in dests):
+            where = (f"sends logs only by {', '.join(sorted({d.split(':')[0] for d in dests}))}, which doesn't store them"
+                     if dests else "has no destination")
             out.append({"key": p["name"],
-                        "message": f"Log Forwarding profile '{p['name']}' (used by {len(rules)} rule"
-                                   f"{'s' if len(rules) != 1 else ''}) has no destination",
+                        "message": f"Log Forwarding profile '{p['name']}' ({_lf_usage(rules)}) {where}",
                         "recommendation": "Forward to Panorama, Strata Logging Service or a syslog server",
                         "scm_object": {"type": "log_forwarding_profile", "name": p["name"]}})
     return out
@@ -2251,14 +2284,15 @@ def check_log_forwarding_profile_no_destination(data: dict, thresholds: dict) ->
 
 def check_log_forwarding_profile_missing_types(data: dict, thresholds: dict) -> list[dict]:
     out = []
-    for p, rules in _used_log_forwarding_profiles(data):
+    for p, rules in _log_forwarding_profiles(data):
         forwarded = {m["log_type"] for m in p["lists"] if m["destinations"]}
         if not forwarded:
             continue  # log_forwarding_profile_no_destination covers it
         missing = [label for t, label in SECURITY_LOG_TYPES.items() if t not in forwarded]
         if missing:
             out.append({"key": p["name"],
-                        "message": f"Log Forwarding profile '{p['name']}' doesn't forward {', '.join(missing)} logs",
+                        "message": f"Log Forwarding profile '{p['name']}' ({_lf_usage(rules)}) doesn't forward "
+                                   f"{', '.join(missing)} logs",
                         "recommendation": "Add a match list with an external destination for each missing log type",
                         "scm_object": {"type": "log_forwarding_profile", "name": p["name"]}})
     return out
@@ -3016,6 +3050,7 @@ CHECKS = {
     "url_credential_detection_not_domain": check_url_credential_detection_not_domain,
     "url_credential_submissions_unlogged": check_url_credential_submissions_unlogged,
     "url_inline_categorization_off": check_url_inline_categorization_off,
+    "decryption_forward_proxy_checks_off": check_decryption_forward_proxy_checks_off,
     "decryption_inbound_checks_off": check_decryption_inbound_checks_off,
     "decryption_ssh_checks_off": check_decryption_ssh_checks_off,
     "decryption_weak_hmac": check_decryption_weak_hmac,

@@ -604,8 +604,8 @@ RULES: list[RuleDef] = [
         source_type="pan_docs",
         source_ref=PAN_BPA_DECRYPTION + " — for SSL Forward Proxy, set the minimum protocol version to "
                    "TLSv1.2 and the maximum version to Max to block weak protocols",
-        description="Checks decryption profiles used by an enabled decrypt rule. An unset minimum version "
-                    "counts as TLSv1.0 — that's PAN-OS's own schema default.",
+        description="Checks every decryption profile, used or not, as Palo Alto SCM does (check #57). An unset "
+                    "minimum version counts as TLSv1.0 — that's PAN-OS's own schema default.",
     ),
     RuleDef(
         id="decryption_profile_cert_checks_disabled",
@@ -615,8 +615,8 @@ RULES: list[RuleDef] = [
         source_type="pan_docs",
         source_ref=PAN_BPA_DECRYPTION + " — block sessions with expired certificates and untrusted "
                    "issuers; untrusted issuers may indicate meddler-in-the-middle or other attacks",
-        description="Checks the SSL Forward Proxy settings of profiles used by an enabled forward-proxy "
-                    "decrypt rule. Only flags an explicit 'no' — the schema declares no default.",
+        description="Checks the SSL Forward Proxy settings of every decryption profile, used or not, as Palo "
+                    "Alto SCM does (check #55). Only flags an explicit 'no' — the schema declares no default.",
     ),
     RuleDef(
         id="decryption_no_decrypt_cert_checks",
@@ -626,9 +626,9 @@ RULES: list[RuleDef] = [
         source_type="pan_docs",
         source_ref=PAN_BPA_DECRYPTION + " — apply a No Decryption profile that blocks sessions with expired "
                    "certificates and untrusted issuers, even for traffic you don't decrypt",
-        description="For each enabled no-decrypt rule: flags a rule with no decryption profile, and a "
-                    "profile whose No Decryption settings explicitly don't block expired certificates or "
-                    "untrusted issuers. Palo Alto notes the certificate isn't visible in TLS 1.3, so these "
+        description="Flags an enabled no-decrypt rule with no decryption profile, and any decryption profile "
+                    "(used or not, as Palo Alto SCM does) whose No Decryption settings explicitly don't block "
+                    "expired certificates or untrusted issuers. Palo Alto notes the certificate isn't visible in TLS 1.3, so these "
                     "blocks only apply to TLS 1.2 and earlier sessions.",
     ),
     RuleDef(
@@ -1247,6 +1247,15 @@ RULES: list[RuleDef] = [
         description="Cloud inline categorization analyses pages in real time to catch new phishing and malicious sites before they're categorized. Only checked with an active Advanced URL Filtering license (upload a tech support file). Follows Palo Alto SCM check #273.",
     ),
     RuleDef(
+        id="decryption_forward_proxy_checks_off",
+        title="Forward-proxy decryption profile lets unverifiable or failed sessions through",
+        category="Decryption",
+        default_severity="LOW",
+        source_type="custom",
+        source_ref=None,
+        description="A decryption profile's SSL Forward Proxy settings don't block sessions with unknown certificate status, certificate-check timeouts, unsupported versions or ciphers, client authentication, or failures for lack of resources or HSM, or don't append the certificate's CN to the SAN. Every profile is graded, used or not. Strip ALPN stays off so HTTP/2 can be decrypted. Follows Palo Alto SCM check #55.",
+    ),
+    RuleDef(
         id="decryption_inbound_checks_off",
         title="Inbound decryption profile lets unsupported or failed sessions through",
         category="Decryption",
@@ -1280,7 +1289,7 @@ RULES: list[RuleDef] = [
         default_severity="WARNING",
         source_type="custom",
         source_ref=None,
-        description='A Log Forwarding profile that security rules use has no Panorama, syslog, email, SNMP or HTTP destination, so logs stay on the firewall and roll over. Follows Palo Alto SCM check #51.',
+        description='A Log Forwarding profile (used by security rules or not, as Palo Alto SCM grades them) sends logs to neither Panorama (or Strata Logging Service) nor a syslog server, so they stay on the firewall and roll over. Email, SNMP and HTTP destinations notify but do not store logs. Follows Palo Alto SCM check #51.',
     ),
     RuleDef(
         id="log_forwarding_profile_missing_types",
@@ -1289,7 +1298,7 @@ RULES: list[RuleDef] = [
         default_severity="LOW",
         source_type="custom",
         source_ref=None,
-        description="A Log Forwarding profile that security rules use doesn't forward every security-relevant log type to an external destination. Follows Palo Alto SCM checks #52, #53, #259 and #260.",
+        description="A Log Forwarding profile (used or not) doesn't forward every security-relevant log type to an external destination. Follows Palo Alto SCM checks #52, #53, #259 and #260.",
     ),
     # ── Security rule hygiene (ported from Palo Alto SCM checks) ───────────
     RuleDef(
@@ -1918,9 +1927,8 @@ RULES: list[RuleDef] = [
         category="Device Hardening",
         default_severity="LOW",
         source_type="cis",
-        source_ref="CIS Palo Alto Firewall Benchmark 1.6.2 — Ensure redundant NTP servers are configured "
-                   "(this check only validates a primary server is present, not redundancy)",
-        description="Accurate log timestamps depend on NTP.",
+        source_ref="CIS Palo Alto Firewall Benchmark 1.6.2 — Ensure redundant NTP servers are configured",
+        description="Accurate log timestamps depend on NTP. Flags no NTP server, or a primary with no secondary.",
     ),
     # ── Known vulnerabilities (Palo Alto Networks security advisories) ──
     RuleDef(
@@ -2144,13 +2152,15 @@ SCM_MATCHES: dict[str, tuple[int, ...]] = {
     "spyware_severity_below_baseline": (40,),
     "spyware_dns_category_mismatch": (38, 253),
     "vulnerability_severity_below_baseline": (42,),
-    "spyware_inline_cloud_analysis_disabled": (364,),
+    "spyware_inline_cloud_analysis_disabled": (364, 334),
     "spyware_inline_cloud_model_not_reset": (334,),
-    "vulnerability_inline_cloud_analysis_disabled": (365,),
+    # With inline cloud analysis off, the per-model actions SCM #360 checks can't be right either.
+    "vulnerability_inline_cloud_analysis_disabled": (365, 360),
     "vulnerability_inline_cloud_model_not_reset": (360,),
     "url_mandatory_category_not_blocked": (43,),
     "url_elevated_risk_category_not_blocked": (341,),
-    "url_credential_enforcement_disabled": (207, 345),
+    # Detection off entirely also fails SCM #227 (which wants the domain credential filter).
+    "url_credential_enforcement_disabled": (207, 345, 227),
     "file_blocking_nothing_blocked": (45,),
     "wildfire_missing_recommended_filetype": (47,),
     "decryption_no_outbound": (350,),
@@ -2204,6 +2214,7 @@ SCM_MATCHES: dict[str, tuple[int, ...]] = {
     "url_credential_detection_not_domain": (227,),
     "url_credential_submissions_unlogged": (346,),
     "url_inline_categorization_off": (273,),
+    "decryption_forward_proxy_checks_off": (55,),
     "decryption_inbound_checks_off": (56,),
     "decryption_ssh_checks_off": (59,),
     "decryption_weak_hmac": (372,),

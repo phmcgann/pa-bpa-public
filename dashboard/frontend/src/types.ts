@@ -614,7 +614,7 @@ export interface Note {
   carried_from?: { id: number; uploaded_at: string } | null;
 }
 
-export type ScmCoverageStatus = "core_missed" | "object_mismatch" | "no_rule" | "core_off" | "covered";
+export type ScmCoverageStatus = "core_missed" | "object_mismatch" | "no_rule" | "core_off" | "by_design" | "not_applicable" | "covered";
 
 export interface ScmCoverage {
   checks: {
@@ -625,6 +625,10 @@ export interface ScmCoverage {
     status: ScmCoverageStatus;
     objects: number;
     object_type: string | null;
+    /** Failed objects the core rules deliberately skip (unused built-in profiles, HA settings with HA off). */
+    not_applicable_objects?: number;
+    /** For by_design: why the core rule skipped these objects on purpose. */
+    reason?: string | null;
     points: number;
     core_rules: { id: string; title: string; enabled: boolean; findings: number }[];
     failed_fields: string[];

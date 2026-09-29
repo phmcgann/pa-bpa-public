@@ -10,6 +10,8 @@ const STATUS: Record<ScmCoverageStatus, { label: string; tone: "critical" | "war
   object_mismatch: { label: "Different objects", tone: "warning", help: `A linked ${brand.ruleSetShort} rule fired, but not on every object SCM failed.` },
   no_rule: { label: `No ${brand.ruleSetShort} rule`, tone: "neutral", help: `No ${brand.ruleSetShort} rule covers this check yet.` },
   core_off: { label: `${brand.ruleSetShort} rule off`, tone: "info", help: `The linked ${brand.ruleSetShort} rule is turned off in Settings.` },
+  by_design: { label: "Deliberate difference", tone: "info", help: `The ${brand.ruleSetShort} rule checked this and chose not to flag it, for the reason shown. Not a gap.` },
+  not_applicable: { label: "Not applicable", tone: "neutral", help: "SCM failed only PAN-OS built-in profiles that nothing uses (they can't be edited and affect no traffic), HA settings on a firewall without HA, or disabled policy-based forwarding rules. These aren't gaps." },
   covered: { label: "Covered", tone: "good", help: `A ${brand.ruleSetShort} finding covers it, so SCM isn't scored twice.` },
 };
 
@@ -20,8 +22,11 @@ const STATUS: Record<ScmCoverageStatus, { label: string; tone: "critical" | "war
  */
 export function ScmCoverage({ coverage }: { coverage: Coverage }) {
   const [copied, setCopied] = useState(false);
-  const gaps = coverage.checks.filter((c) => c.status !== "covered");
+  const gaps = coverage.checks.filter((c) => !["covered", "by_design", "not_applicable"].includes(c.status));
   const gapPoints = gaps.reduce((n, c) => n + c.points, 0);
+  const deliberate = coverage.checks.filter((c) => c.status === "by_design");
+  const notApplicable = coverage.checks.filter((c) => c.status === "not_applicable");
+  const listed = [...gaps, ...deliberate, ...notApplicable];
   const s = coverage.summary;
 
   return (
@@ -32,8 +37,14 @@ export function ScmCoverage({ coverage }: { coverage: Coverage }) {
           {gaps.length > 0
             ? <>{gaps.length} would go unreported without SCM ({gapPoints} points).</>
             : "Nothing would go unreported without SCM."}
+          {deliberate.length > 0 && (
+            <> {deliberate.length} {deliberate.length === 1 ? "is a deliberate difference" : "are deliberate differences"} from SCM.</>
+          )}
+          {notApplicable.length > 0 && (
+            <> {notApplicable.length} more fail only on built-in profiles nothing uses, HA settings on a firewall without HA, or disabled PBF rules, which aren't gaps.</>
+          )}
         </p>
-        {gaps.length > 0 && (
+        {listed.length > 0 && (
           <Button
             size="sm"
             className="no-print"
@@ -48,17 +59,23 @@ export function ScmCoverage({ coverage }: { coverage: Coverage }) {
           </Button>
         )}
       </div>
-      {gaps.length > 0 && (
+      {listed.length > 0 && (
         <table className="scm-coverage-table">
           <thead>
             <tr><th>SCM check</th><th>Status</th><th>Linked {brand.ruleSetShort} rule</th><th className="text-right">Points</th></tr>
           </thead>
           <tbody>
-            {gaps.map((c) => (
+            {listed.map((c) => (
               <tr key={c.check_id}>
                 <td>
                   <div className="text-[12px] text-fg-muted tab-num">SCM {c.check_id} · {c.category}</div>
                   <div className="text-[13px] leading-5">{c.title}</div>
+                  {!!c.not_applicable_objects && c.status !== "not_applicable" && (
+                    <div className="text-[11px] text-fg-muted mt-0.5">
+                      Plus {c.not_applicable_objects} unused built-in object{c.not_applicable_objects === 1 ? "" : "s"}, not counted
+                    </div>
+                  )}
+                  {c.reason && <div className="text-[12px] text-fg-2 mt-0.5">Why: {c.reason}</div>}
                   {c.failed_fields.length > 0 && (
                     <div className="text-[11px] text-fg-muted mt-0.5 font-mono break-all">{c.failed_fields.join(", ")}</div>
                   )}

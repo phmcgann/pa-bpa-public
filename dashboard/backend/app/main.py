@@ -532,7 +532,8 @@ def scm_coverage_for(assessment: Assessment, session: Session, findings: list[di
     run = session.get(ScmBpaRun, assessment.id)
     if run is None or run.status != "completed":
         return None
-    coverage = scm_coverage.build(findings, run.results or [], get_rule_settings(session), summary["weights"])
+    coverage = scm_coverage.build(findings, run.results or [], get_rule_settings(session), summary["weights"],
+                                  assessment.parsed_data)
     return {**coverage, "text": scm_coverage.as_text(coverage)}
 
 

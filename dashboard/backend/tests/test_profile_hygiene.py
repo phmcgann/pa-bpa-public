@@ -133,10 +133,13 @@ def test_inline_categorization_skipped_only_without_advanced_url_license():
         {"feature": "PAN-DB URL Filtering", "expired": "no"}]})) == {}
 
 
-def test_unused_log_forwarding_profile_is_ignored():
+def test_unused_log_forwarding_profile_is_graded_too():
+    # As Palo Alto SCM does (check #51): an unused profile is one attach away from use.
     root = _root()
     ET.SubElement(root.find("shared/log-settings/profiles"), "entry", name="lf-empty")
-    assert _findings(_data(root)) == {}
+    assert _findings(_data(root)) == {"log_forwarding_profile_no_destination": ["lf-empty"]}
+    msg = checks.CHECKS["log_forwarding_profile_no_destination"](_data(root), {})[0]["message"]
+    assert "not used by any rule" in msg
 
 
 def test_findings_carry_scm_objects():

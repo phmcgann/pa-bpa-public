@@ -486,7 +486,8 @@ def _parse_url_filtering_settings(entry: ET.Element) -> dict:
         "credential_allow_categories": members(entry, "credential-enforcement/allow/member"),
         "credential_enforcement_mode": _single_child_tag(entry.find("credential-enforcement/mode"), "disabled"),
         "credential_enforcement_block_categories": members(entry, "credential-enforcement/block/member"),
-        "log_container_page_only": xml_text(entry, "log-container-page-only", "no") == "yes",
+        # On by default in PAN-OS (Palo Alto SCM check #44 fails profiles that leave it unset).
+        "log_container_page_only": xml_text(entry, "log-container-page-only", "yes") == "yes",
         "local_inline_cat": xml_text(entry, "local-inline-cat", "no") == "yes",
         "cloud_inline_cat": xml_text(entry, "cloud-inline-cat", "no") == "yes",
     }
@@ -630,6 +631,10 @@ NON_QUANTUM_SAFE_CIPHERS = ("3des", "rc4", "aes-128-cbc", "aes-256-cbc", "aes-12
 INBOUND_CHECKS = ("block-unsupported-version", "block-unsupported-cipher", "block-if-no-resource",
                   "block-if-hsm-unavailable", "block-tls13-downgrade-no-resource")
 SSH_CHECKS = ("block-unsupported-version", "block-unsupported-alg", "block-ssh-errors", "block-if-no-resource")
+# SSL Forward Proxy options beyond the two certificate checks (Palo Alto SCM check #55 wants them all on;
+# "Strip ALPN" and "Restrict certificate extensions" stay off so HTTP/2 and normal sites keep working).
+FORWARD_CHECKS = ("block-unknown-cert", "block-timeout-cert", "block-unsupported-version", "block-unsupported-cipher",
+                  "block-client-cert", "block-if-no-resource", "block-if-hsm-unavailable", "auto-include-altname")
 
 
 def parse_decryption_profile_entry(entry: ET.Element) -> dict:
@@ -645,6 +650,7 @@ def parse_decryption_profile_entry(entry: ET.Element) -> dict:
         "no_proxy_block_untrusted": _yes_no(entry, "ssl-no-proxy/block-untrusted-issuer"),
         # SSL Inbound Inspection and SSH Proxy unsupported-mode/failure checks (pan-os-codegen
         # decryption-profile spec; Palo Alto SCM checks #56 and #59), all off unless set.
+        "forward_checks": {opt: xml_text(entry, f"ssl-forward-proxy/{opt}", "no") == "yes" for opt in FORWARD_CHECKS},
         "inbound_checks": {opt: xml_text(entry, f"ssl-inbound-proxy/{opt}", "no") == "yes" for opt in INBOUND_CHECKS},
         "ssh_checks": {opt: xml_text(entry, f"ssh-proxy/{opt}", "no") == "yes" for opt in SSH_CHECKS},
         # HMAC algorithms allowed for decrypted sessions. SHA-1 is allowed unless turned off; Palo Alto
@@ -1630,24 +1636,27 @@ def parse_mgmt_plane(layers: list[ET.Element]) -> dict:
             }
         shared = layer.find("shared")
         if shared is None:
-            continue
+            shared = ET.Element("shared")  # a vsys can still hold server profiles
         for e in shared.findall("ssl-tls-service-profile/entry"):
             if e.get("name"):
                 tls[e.get("name")] = {"min_version": xml_text(e, "protocol-settings/min-version", "tls1-0")}
-        for e in shared.findall("server-profile/ldap/entry"):
-            by_kind["ldap"][e.get("name")] = {
-                "name": e.get("name"),
-                "ssl": xml_text(e, "ssl", None),
-                "verify_certificate": xml_text(e, "verify-server-certificate", "no") == "yes",
-                "servers": len(e.findall("server/entry")),
-            }
-        for e in shared.findall("server-profile/radius/entry"):
-            by_kind["radius"][e.get("name")] = {"name": e.get("name"),
-                                                "protocol": _single_child_tag(e.find("protocol"), None)}
-        for e in shared.findall("server-profile/tacplus/entry"):
-            by_kind["tacplus"][e.get("name")] = {"name": e.get("name"),
-                                                 "protocol": xml_text(e, "protocol", None)
-                                                 or _single_child_tag(e.find("protocol"), "CHAP")}
+        # Authentication server profiles can be shared or belong to a vsys.
+        server_scopes = [shared] + layer.findall("devices/entry/vsys/entry")
+        for scope in server_scopes:
+            for e in scope.findall("server-profile/ldap/entry"):
+                by_kind["ldap"][e.get("name")] = {
+                    "name": e.get("name"),
+                    "ssl": xml_text(e, "ssl", None),
+                    "verify_certificate": xml_text(e, "verify-server-certificate", "no") == "yes",
+                    "servers": len(e.findall("server/entry")),
+                }
+            for e in scope.findall("server-profile/radius/entry"):
+                by_kind["radius"][e.get("name")] = {"name": e.get("name"),
+                                                    "protocol": _single_child_tag(e.find("protocol"), "CHAP")}  # PAN-OS default
+            for e in scope.findall("server-profile/tacplus/entry"):
+                by_kind["tacplus"][e.get("name")] = {"name": e.get("name"),
+                                                     "protocol": xml_text(e, "protocol", None)
+                                                     or _single_child_tag(e.find("protocol"), "CHAP")}
         for e in shared.findall("log-settings/syslog/entry"):
             by_kind["syslog"][e.get("name")] = {"name": e.get("name"), "servers": [
                 {"name": s.get("name"), "server": xml_text(s, "server", None), "transport": xml_text(s, "transport", "UDP")}

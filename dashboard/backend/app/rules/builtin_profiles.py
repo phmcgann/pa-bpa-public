@@ -98,6 +98,26 @@ def with_builtins(data: dict) -> tuple[dict, set[tuple[str, str]]]:
     return data, added
 
 
+def unused_builtins(data: dict) -> set[tuple[str, str]]:
+    """(SCM object type, name) of the predefined profiles this configuration doesn't define or use.
+    Palo Alto SCM grades them anyway; they can't be edited and affect no traffic, so the core rules
+    leave them out and the coverage view marks SCM's findings on them as not applicable."""
+    ref = _reference()
+    out: set[tuple[str, str]] = set()
+    profiles = data.get("security_profiles") or {}
+    used = _used_security_profiles(data)
+    for ptype, names in ref.items():
+        if ptype == "decryption":
+            continue
+        defined = {p["name"] for p in profiles.get(ptype) or []}
+        out.update((_SCM_TYPES[ptype], n) for n in names if n not in defined and n not in used.get(ptype, {}))
+    decryption = data.get("decryption") or {}
+    defined = {p["name"] for p in decryption.get("profiles") or []}
+    in_use = {r.get("profile") for r in decryption.get("rules") or [] if r.get("disabled") != "yes"}
+    out.update(("decryption_profile", n) for n in ref["decryption"] if n not in defined and n not in in_use)
+    return out
+
+
 def _about(finding: dict, ptype: str, name: str) -> bool:
     obj = finding.get("scm_object")
     if obj:
