@@ -32,10 +32,11 @@ export const api = {
       { method: "POST", body: form }
     );
   },
-  createFromPanorama: (uploadId: number, deviceGroup: string) =>
+  /** Assess one firewall (by serial) or, for files without assigned firewalls, one device group. */
+  createFromPanorama: (uploadId: number, choice: { serial: string } | { device_group: string }) =>
     request<UploadResult>("/api/assessments/from-panorama", {
       method: "POST",
-      body: JSON.stringify({ upload_id: uploadId, device_group: deviceGroup }),
+      body: JSON.stringify({ upload_id: uploadId, ...choice }),
     }),
   listAssessments: () => request<AssessmentListItem[]>("/api/assessments"),
   getAssessment: (id: number) => request<AssessmentDetail>(`/api/assessments/${id}`),

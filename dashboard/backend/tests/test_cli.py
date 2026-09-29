@@ -208,3 +208,32 @@ def test_wildfire_file_type_and_size_limit():
         "set profiles wildfire-analysis wf rules default file-type pdf"]
     assert cmds(data, "wildfire_size_limit_below_default", "pdf") == [
         "set deviceconfig setting wildfire file-size-limit pdf size-limit 3072"]
+
+
+# ── Panorama-managed firewalls ───────────────────────────────────────────
+
+def _annotated(data):
+    findings = [f("security_rule_no_logging_allow", "Allow Web")]
+    cli.annotate(findings, data)
+    return findings[0]["cli"]
+
+
+def test_panorama_managed_firewall_gets_no_commands():
+    """A managed firewall's own export or tech support file doesn't say which rules Panorama pushed, so
+    commands typed at the firewall would miss or be undone by the next push: none are offered."""
+    data = {"panorama_managed": True, "security_rules": [rule("Allow Web")]}
+    assert cli.unavailable_reason(data) and "Panorama" in cli.unavailable_reason(data)
+    assert _annotated(data) is None
+
+
+def test_panorama_export_still_gets_panorama_commands():
+    data = {"panorama_managed": True, "device_group": "Branch",
+            "security_rules": [rule("Allow Web", rule_scope="device_group_pre")]}
+    assert cli.unavailable_reason(data) is None
+    assert _annotated(data)["commands"] == ["set device-group Branch pre-rulebase security rules \"Allow Web\" log-end yes"]
+
+
+def test_standalone_firewall_is_unchanged():
+    data = {"security_rules": [rule("Allow Web")]}
+    assert cli.unavailable_reason(data) is None
+    assert _annotated(data)["commands"] == ['set rulebase security rules "Allow Web" log-end yes']

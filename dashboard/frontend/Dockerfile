@@ -1,4 +1,7 @@
-FROM node:20-alpine AS build
+# The built files are the same on every CPU, so build them once on the machine running the build
+# ($BUILDPLATFORM) instead of under emulation for each image architecture: npm under ARM emulation
+# is slow and can hang. Only the small nginx stage below is per-architecture.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

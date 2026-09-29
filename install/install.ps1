@@ -78,8 +78,18 @@ function Install-PaBpa {
         Stop-Install "Docker isn't installed. Install Docker Desktop first (docs/INSTALL.md, step 1), open it once, then run this command again."
     }
     if ((Invoke-Docker info).Code -ne 0) {
-        $desktop = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
-        if (Test-Path $desktop) {
+        # All-users installs live in Program Files; per-user installs (Docker's current default) under
+        # LocalAppData. The docker CLI sits in <install>\resources\bin, so its location finds either.
+        $candidates = @()
+        if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe' }
+        if ($env:LOCALAPPDATA) {
+            $candidates += Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\Docker Desktop.exe'
+            $candidates += Join-Path $env:LOCALAPPDATA 'Programs\Docker\Docker\Docker Desktop.exe'
+        }
+        $cli = (Get-Command docker -ErrorAction SilentlyContinue).Source
+        if ($cli) { $candidates += (Join-Path (Split-Path (Split-Path (Split-Path $cli))) 'Docker Desktop.exe') }
+        $desktop = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+        if ($desktop) {
             Write-Host "    Docker Desktop isn't running. Starting it..."
             Start-Process $desktop
         }

@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!-- Synthetic Panorama config for device-group hierarchy and template-stack tests. All names,
+     serials and addresses are made up (RFC 5737). Shaped like a real deployment:
+     Shared > sdwan > region-east > fw-leaf (+ sibling fw-other), and a top-level "lab" group. -->
+<config version="11.1.0">
+  <shared>
+    <pre-rulebase><security><rules><entry name="shared-pre-allow"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+    <post-rulebase><security><rules><entry name="shared-post-deny"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>deny</action></entry></rules></security></post-rulebase>
+    <profiles><virus><entry name="av-shared"><decoder><entry name="http"><action>reset-both</action><wildfire-action>reset-both</wildfire-action></entry></decoder></entry></virus></profiles>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <device-group>
+        <entry name="sdwan">
+          <pre-rulebase><security><rules><entry name="sdwan-pre"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+          <profiles><virus><entry name="av-common"><decoder><entry name="http"><action>alert</action><wildfire-action>alert</wildfire-action></entry></decoder></entry></virus></profiles>
+        </entry>
+        <entry name="region-east">
+          <pre-rulebase><security><rules><entry name="region-east-pre"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+          <post-rulebase><security><rules><entry name="region-east-post"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></post-rulebase>
+        </entry>
+        <entry name="fw-leaf">
+          <devices><entry name="012345678901"/></devices>
+          <pre-rulebase><security><rules><entry name="leaf-pre"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+          <post-rulebase><security><rules><entry name="leaf-post"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></post-rulebase>
+          <profiles><virus><entry name="av-common"><decoder><entry name="http"><action>reset-both</action><wildfire-action>reset-both</wildfire-action></entry></decoder></entry></virus></profiles>
+        </entry>
+        <entry name="fw-other">
+          <devices><entry name="099999999999"/></devices>
+          <pre-rulebase><security><rules><entry name="other-pre"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+        </entry>
+        <entry name="lab">
+          <devices><entry name="055555555555"/></devices>
+          <pre-rulebase><security><rules><entry name="lab-pre"><from><member>any</member></from><to><member>any</member></to><source><member>any</member></source><destination><member>any</member></destination><application><member>web-browsing</member></application><service><member>application-default</member></service><action>allow</action></entry></rules></security></pre-rulebase>
+        </entry>
+      </device-group>
+      <template>
+        <entry name="iron-skillet"><config><devices><entry name="localhost.localdomain"><deviceconfig><system><ntp-servers><primary-ntp-server><ntp-server-address>192.0.2.10</ntp-server-address></primary-ntp-server></ntp-servers><login-banner>Authorized access only</login-banner></system></deviceconfig><vsys><entry name="vsys1"><zone><entry name="untrust"><network><layer3/></network></entry></zone></entry></vsys></entry></devices></config></entry>
+        <entry name="common-shared"><config><devices><entry name="localhost.localdomain"><deviceconfig><system><ntp-servers><secondary-ntp-server><ntp-server-address>192.0.2.11</ntp-server-address></secondary-ntp-server></ntp-servers></system></deviceconfig><vsys><entry name="vsys1"><zone><entry name="trust"><network><layer3/></network></entry></zone></entry></vsys></entry></devices></config></entry>
+        <entry name="fw-leaf-tmpl"><config><devices><entry name="localhost.localdomain"><deviceconfig><system><hostname>fw-leaf-01</hostname><ntp-servers><primary-ntp-server><ntp-server-address>192.0.2.99</ntp-server-address></primary-ntp-server></ntp-servers></system></deviceconfig><vsys><entry name="vsys1"><zone><entry name="dmz"><network><layer3/></network></entry></zone></entry></vsys></entry></devices></config></entry>
+        <entry name="other-tmpl"><config><devices><entry name="localhost.localdomain"><deviceconfig><system><hostname>fw-other-01</hostname></system></deviceconfig><vsys><entry name="vsys1"><zone><entry name="guest"><network><layer3/></network></entry></zone></entry></vsys></entry></devices></config></entry>
+      </template>
+      <template-stack>
+        <entry name="stk_fw-leaf">
+          <templates><member>fw-leaf-tmpl</member><member>common-shared</member><member>iron-skillet</member></templates>
+          <devices><entry name="012345678901"/></devices>
+        </entry>
+        <entry name="stk_fw-other">
+          <templates><member>other-tmpl</member><member>iron-skillet</member></templates>
+          <devices><entry name="099999999999"/></devices>
+        </entry>
+      </template-stack>
+    </entry>
+  </devices>
+  <readonly>
+    <devices>
+      <entry name="localhost.localdomain">
+        <device-group>
+          <entry name="sdwan"><id>11</id></entry>
+          <entry name="region-east"><id>12</id><parent-dg>sdwan</parent-dg></entry>
+          <entry name="fw-leaf"><id>13</id><parent-dg>region-east</parent-dg></entry>
+          <entry name="fw-other"><id>14</id><parent-dg>region-east</parent-dg></entry>
+          <entry name="lab"><id>15</id></entry>
+        </device-group>
+      </entry>
+    </devices>
+  </readonly>
+</config>

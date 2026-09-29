@@ -3,15 +3,18 @@ import { CliButton } from "./CliPanel";
 import { NoteButton, NoteRef } from "./Notes";
 import { Badge, SeverityBadge } from "./ui/Badge";
 import { SeverityIcon } from "./ui/SeverityIcon";
+import { Callout } from "./ui/Callout";
 
 /**
  * The scored findings grouped into work items, most urgent first. Each item shows what it resolves:
  * findings, and the risk points it would take off the score.
  */
-export function RemediationPlan({ items, totalPoints, findings }: {
+export function RemediationPlan({ items, totalPoints, findings, cliUnavailable }: {
   items: RemediationItem[];
   totalPoints: number;
   findings: Finding[];
+  /** Set when commands can't be offered (e.g. a Panorama-managed firewall): shown instead of Copy CLI. */
+  cliUnavailable?: string | null;
 }) {
   const byKey = new Map(findings.map((f) => [f.finding_key, f]));
   if (items.length === 0) {
@@ -28,6 +31,7 @@ export function RemediationPlan({ items, totalPoints, findings }: {
         most severe finding each resolves, then by the risk points it removes.
         {items.length > 3 && <> The first three remove {firstThree} of {totalPoints} points ({pct(firstThree)}%).</>}
       </p>
+      {cliUnavailable && <Callout className="no-print max-w-3xl" title="No CLI commands for this firewall.">{cliUnavailable}</Callout>}
       <ol className="list-none m-0 p-0 flex flex-col">
         {items.map((item) => (
           <li key={item.key} className="keep-together border-t border-divider first:border-t-0 py-4 flex gap-4">

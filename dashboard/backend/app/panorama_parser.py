@@ -211,48 +211,201 @@ def _parse_scoped_decryption_rules(container_el: Optional[ET.Element], scope_lab
     ]
 
 
+# ── Device-group hierarchy and a firewall's own device groups / template stack ──
+
+def device_group_parents(config_root: ET.Element) -> tuple[dict[str, Optional[str]], bool]:
+    """Each device group's parent (None: directly under Shared), and whether the file records the
+    hierarchy at all. Panorama keeps it outside the device groups themselves, in the read-only
+    section: readonly/devices/entry/device-group/entry/parent-dg (older releases:
+    readonly/dg-meta-data/dg-info/entry/parent-dg). A group with no parent-dg sits under Shared."""
+    parents: dict[str, Optional[str]] = {}
+    readonly = config_root.find("readonly")
+    if readonly is None:
+        return parents, False
+    known = False
+    for container in (readonly.find("devices/entry/device-group"), readonly.find("dg-meta-data/dg-info")):
+        if container is None:
+            continue
+        known = True
+        for entry in container.findall("entry"):
+            name = entry.get("name")
+            parent = (entry.findtext("parent-dg") or "").strip()
+            if name and parent:
+                parents[name] = parent
+    return parents, known
+
+
+def device_group_chain(config_root: ET.Element, name: str) -> list[str]:
+    """The device groups whose policy a member of `name` receives, top of the hierarchy first:
+    [grandparent, parent, name]. Shared isn't listed; it always applies."""
+    parents, _ = device_group_parents(config_root)
+    container = _dg_container(config_root)
+    existing = {e.get("name") for e in container.findall("entry")} if container is not None else set()
+    chain: list[str] = []
+    current: Optional[str] = name
+    while current and current in existing and current not in chain:
+        chain.insert(0, current)
+        current = parents.get(current)
+    return chain
+
+
+def _template_containers(config_root: ET.Element) -> tuple[Optional[ET.Element], Optional[ET.Element]]:
+    devices_top = config_root.find("devices")
+    if devices_top is None:
+        return None, None
+    return devices_top.find("entry/template"), devices_top.find("entry/template-stack")
+
+
+def device_templates(config_root: ET.Element, serial: str) -> tuple[Optional[str], list[str], list[ET.Element]]:
+    """The template stack assigned to a firewall (by serial), its templates in priority order (first
+    wins), and the resolved template configs, lowest priority first. Falls back to a template the
+    firewall is assigned to directly (older Panorama releases)."""
+    template_container, stack_container = _template_containers(config_root)
+    for stack in (stack_container.findall("entry") if stack_container is not None else []):
+        if any(d.get("name") == serial for d in stack.findall("devices/entry")):
+            name = stack.get("name")
+            return name, members(stack, "templates/member"), _resolve_reference_configs(
+                template_container, stack_container, [name])
+    for tmpl in (template_container.findall("entry") if template_container is not None else []):
+        if any(d.get("name") == serial for d in tmpl.findall("devices/entry")):
+            name = tmpl.get("name")
+            return None, [name], _resolve_reference_configs(template_container, stack_container, [name])
+    return None, [], []
+
+
+def _template_hostname(configs: list[ET.Element]) -> Optional[str]:
+    for cfg in reversed(configs):  # highest priority first
+        name = (cfg.findtext("devices/entry/deviceconfig/system/hostname") or "").strip()
+        if name:
+            return name
+    return None
+
+
+def list_devices(config_root: ET.Element, hostnames: Optional[dict[str, str]] = None) -> list[dict]:
+    """For the upload-time picker: every firewall Panorama manages, with the device groups (top of the
+    hierarchy first) and template stack it gets its configuration from. Hostnames come from the
+    template stack when it sets one, else from `hostnames` (Panorama's own device list, when the file
+    has it), else they're unknown."""
+    dg_container = _dg_container(config_root)
+    serial_dg: dict[str, str] = {}
+    for entry in (dg_container.findall("entry") if dg_container is not None else []):
+        for d in entry.findall("devices/entry"):
+            if d.get("name") and entry.get("name"):
+                serial_dg.setdefault(d.get("name"), entry.get("name"))
+    template_container, stack_container = _template_containers(config_root)
+    stacked = [d.get("name") for c in (stack_container, template_container) if c is not None
+               for e in c.findall("entry") for d in e.findall("devices/entry") if d.get("name")]
+    out = []
+    for serial in dict.fromkeys([*serial_dg, *stacked]):
+        stack, templates, configs = device_templates(config_root, serial)
+        dg = serial_dg.get(serial)
+        out.append({
+            "serial": serial,
+            "hostname": _template_hostname(configs) or (hostnames or {}).get(serial),
+            "device_group": dg,
+            "device_groups": device_group_chain(config_root, dg) if dg else [],
+            "template_stack": stack,
+            "templates": templates,
+        })
+    return sorted(out, key=lambda d: ((d["hostname"] or "~").lower(), d["serial"]))
+
+
+def build_assessment_data_for_device(config_root: ET.Element, serial: str, hostname: Optional[str] = None) -> dict:
+    """The effective configuration Panorama gives one firewall: Shared plus every device group from the
+    top of its hierarchy down to its own, and the template stack it's assigned. Same AssessmentData
+    shape as parser.parse_config(); local settings made on the firewall itself aren't in Panorama's
+    config, so they aren't included."""
+    device = next((d for d in list_devices(config_root) if d["serial"] == serial), None)
+    if device is None:
+        raise ValueError(f"Firewall with serial {serial} isn't managed by this Panorama")
+    _, _, configs = device_templates(config_root, serial)
+    _, hierarchy_known = device_group_parents(config_root)
+    host = hostname or device["hostname"] or serial
+    return _build(config_root, device["device_groups"], configs, host=host, serials=[serial], panorama={
+        "mode": "device", "serial": serial, "device_groups": device["device_groups"],
+        "template_stack": device["template_stack"], "templates": device["templates"],
+        "hierarchy_known": hierarchy_known,
+    })
+
+
 def build_assessment_data(config_root: ET.Element, device_group_name: str) -> dict:
-    """Resolve the effective policy for one device-group into the same
-    AssessmentData shape parser.parse_config() returns, so the rules engine
-    and every frontend component work unchanged."""
+    """The effective policy for one device group (and the device groups above it), with templates from
+    its reference-templates list. Assessments made before firewalls could be picked directly use this."""
     dg_container = _dg_container(config_root)
     if dg_container is None:
         raise ValueError("Not a Panorama export (no device-group found)")
-
     dg = next((e for e in dg_container.findall("entry") if e.get("name") == device_group_name), None)
     if dg is None:
         raise ValueError(f"Device group '{device_group_name}' not found in this export")
+    template_container, stack_container = _template_containers(config_root)
+    configs = _resolve_reference_configs(template_container, stack_container, members(dg, "reference-templates/member"))
+    serials = [d.get("name") for d in dg.findall("devices/entry") if d.get("name")]
+    _, hierarchy_known = device_group_parents(config_root)
+    chain = device_group_chain(config_root, device_group_name)
+    return _build(config_root, chain, configs, host=device_group_name, serials=serials, panorama={
+        "mode": "device_group", "serial": None, "device_groups": chain,
+        "template_stack": None, "templates": members(dg, "reference-templates/member"),
+        "hierarchy_known": hierarchy_known,
+    })
 
+
+def _build(config_root: ET.Element, chain: list[str], resolved_configs: list[ET.Element], *, host: str,
+           serials: list[str], panorama: dict) -> dict:
+    """Resolve Shared plus the device groups in `chain` (top of the hierarchy first) and the template
+    layers in `resolved_configs` (lowest priority first) into the AssessmentData shape.
+
+    Order, as PAN-OS evaluates it: pre-rules from Shared, then each device group from the top of the
+    hierarchy down; post-rules from the firewall's own device group back up the hierarchy, then Shared.
+    Objects and profiles: a lower device group's same-named object wins (PAN-OS's default)."""
+    dg_container = _dg_container(config_root)
+    by_name = {e.get("name"): e for e in (dg_container.findall("entry") if dg_container is not None else [])}
+    dgs = [(name, by_name[name]) for name in chain if name in by_name]
     shared = config_root.find("shared")
+    leaf = dgs[-1][0] if dgs else None
 
-    # ── Rules: shared-pre -> device-group-pre -> device-group-post -> shared-post
-    rules: list[dict] = []
-    rules += _parse_scoped_rules(shared.find("pre-rulebase") if shared is not None else None, "shared_pre")
-    rules += _parse_scoped_rules(dg.find("pre-rulebase"), "device_group_pre")
-    rules += _parse_scoped_rules(dg.find("post-rulebase"), "device_group_post")
-    rules += _parse_scoped_rules(shared.find("post-rulebase") if shared is not None else None, "shared_post")
+    def rb(el: Optional[ET.Element], tag: str) -> Optional[ET.Element]:
+        return el.find(tag) if el is not None else None
 
-    # ── Security profiles + profile groups: union of shared + this device-group's own.
-    # Keeps the actual <entry> element (not just the name) so settings can be read out
-    # of it below — a device-group's own entry wins over shared's on a name collision,
-    # same "more specific layer wins" precedence used for zones/management settings.
+    # (rulebase element, scope label, owning device group) in evaluation order
+    ordered = ([(rb(shared, "pre-rulebase"), "shared_pre", None)]
+               + [(rb(dg, "pre-rulebase"), "device_group_pre", name) for name, dg in dgs]
+               + [(rb(dg, "post-rulebase"), "device_group_post", name) for name, dg in reversed(dgs)]
+               + [(rb(shared, "post-rulebase"), "shared_post", None)])
+
+    def scoped(parse):
+        out = []
+        for container, label, owner in ordered:
+            for r in parse(container, label):
+                r["scope_name"] = owner
+                out.append(r)
+        return out
+
+    rules = scoped(_parse_scoped_rules)
+    decryption_rules = scoped(_parse_scoped_decryption_rules)
+    nat_rules = scoped(_parse_scoped_nat_rules)
+
+    # Object scopes, lowest priority first: Shared, then the hierarchy top-down.
+    layers: list[tuple[str, ET.Element, Optional[str]]] = ([("shared", shared, None)] if shared is not None else []) + \
+        [("device_group", dg, name) for name, dg in dgs]
+    scope_els = [el for _, el, _ in layers]
+
     profile_entries: dict[str, dict[str, ET.Element]] = {}
+    scope_name: dict[tuple[str, str], Optional[str]] = {}
     for key, tag in PROFILE_TYPE_TAGS.items():
-        by_name: dict[str, ET.Element] = {}
-        if shared is not None:
-            for e in shared.findall(f"profiles/{tag}/entry"):
+        found: dict[str, ET.Element] = {}
+        for _, el, owner in layers:
+            for e in el.findall(f"profiles/{tag}/entry"):
                 if e.get("name"):
-                    by_name[e.get("name")] = e
-        for e in dg.findall(f"profiles/{tag}/entry"):
-            if e.get("name"):
-                by_name[e.get("name")] = e
-        profile_entries[key] = by_name
-    profiles: dict[str, list[str]] = {key: sorted(by_name.keys()) for key, by_name in profile_entries.items()}
-    scope_of = profile_scopes([("shared", shared), ("device_group", dg)])
+                    found[e.get("name")] = e
+                    scope_name[(key, e.get("name"))] = owner
+        profile_entries[key] = found
+    profiles: dict[str, list[str]] = {key: sorted(found.keys()) for key, found in profile_entries.items()}
+    scope_of = profile_scopes([(label, el) for label, el, _ in layers])
 
     groups: list[dict] = []
     seen_group_names: set[str] = set()
-    for container in [shared.find("profile-group") if shared is not None else None, dg.find("profile-group")]:
+    for _, el, _ in reversed(layers):  # the lowest device group's same-named group wins
+        container = el.find("profile-group")
         if container is None:
             continue
         for entry in container.findall("entry"):
@@ -275,6 +428,7 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
                 "name": name,
                 "rule_count": profile_rule_counts[ptype][name],
                 "scope": scope_of.get((ptype, name)),
+                "scope_name": scope_name.get((ptype, name)),
                 "settings": parse_profile_settings(profile_entries[ptype][name], ptype),
             }
             for name in names
@@ -287,27 +441,9 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
         for g in groups
     ]
 
-    # ── Zones + management settings: resolved from the device-group's reference-templates
-    devices_top = config_root.find("devices")
-    template_container = devices_top.find("entry/template") if devices_top is not None else None
-    stack_container = devices_top.find("entry/template-stack") if devices_top is not None else None
-    reference_names = members(dg, "reference-templates/member")
-    resolved_configs = _resolve_reference_configs(template_container, stack_container, reference_names)
     zones = _merge_zones(resolved_configs)
     management = _merge_management_settings(resolved_configs)
-
-    # Same order as the security rulebase; profiles are shared then the
-    # device-group's own, so a device-group profile wins on a name collision.
-    decryption_rules: list[dict] = []
-    for container, label in [
-        (shared.find("pre-rulebase") if shared is not None else None, "shared_pre"),
-        (dg.find("pre-rulebase"), "device_group_pre"),
-        (dg.find("post-rulebase"), "device_group_post"),
-        (shared.find("post-rulebase") if shared is not None else None, "shared_post"),
-    ]:
-        decryption_rules += _parse_scoped_decryption_rules(container, label)
-    decryption_profile_els = (shared.findall("profiles/decryption/entry") if shared is not None else []) + \
-        dg.findall("profiles/decryption/entry")
+    decryption_profile_els = [e for el in scope_els for e in el.findall("profiles/decryption/entry")]
 
     # Network profiles and interfaces live in the template layers, lowest
     # priority first — a later layer's same-named profile replaces an earlier one.
@@ -341,19 +477,16 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
         top_level_names.update(e.get("name") for e in shared.findall("log-settings/syslog/entry") if e.get("name"))
     syslog_count = len(top_level_names) + _count_template_syslog_profiles(resolved_configs)
 
-    # Serial(s) of the firewall(s) assigned to this device-group ARE in the
-    # export (device-group/entry/devices/entry's name attribute) — unlike
-    # PAN-OS version/uptime, which are genuinely runtime-only.
-    devices_el = dg.find("devices")
-    serials = [d.get("name") for d in devices_el.findall("entry") if d.get("name")] if devices_el is not None else []
-
-    post_rulebases = [rb for rb in (shared.find("post-rulebase") if shared is not None else None,
-                                    dg.find("post-rulebase")) if rb is not None]
+    post_rulebases = [el for el in ([rb(shared, "post-rulebase")] + [rb(dg, "post-rulebase") for _, dg in dgs])
+                      if el is not None]
+    rulebases_in_order = [(el, label) for el, label, _ in ordered if el is not None]
+    where = (f"firewall {host}" if panorama["mode"] == "device" else f"device group '{host}'")
 
     return {
         "panorama_managed": True,
+        "panorama": panorama,
         "mgmt_interfaces": parse_mgmt_interfaces(interface_containers),
-        "policy_objects": parse_policy_objects(([shared] if shared is not None else []) + [dg]),
+        "policy_objects": parse_policy_objects(scope_els),
         "default_rule_actions": parse_default_rule_actions(post_rulebases),
         "default_rule_logging": parse_default_rule_logging(post_rulebases),
         "decryption": {
@@ -365,9 +498,9 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
         "interface_mgmt_profiles": interface_mgmt_profiles,
         "system_info": {
             "available": False,
-            "hostname": device_group_name,
+            "hostname": host,
             "serial": ", ".join(serials) if serials else None,
-            "reason": f"Resolved from a Panorama export (device group '{device_group_name}') — "
+            "reason": f"Resolved from a Panorama export ({where}) — "
                       "PAN-OS version and uptime require a live device connection.",
         },
         "licenses": {
@@ -376,15 +509,9 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
         },
         "admin_accounts": [],
         "zones": zones,
-        "device_group": device_group_name,
+        "device_group": leaf,
         "security_rules": rules,
-        # Same pre/post order as the security rulebase.
-        "nat_rules": [r for container, label in (
-            (shared.find("pre-rulebase") if shared is not None else None, "shared_pre"),
-            (dg.find("pre-rulebase"), "device_group_pre"),
-            (dg.find("post-rulebase"), "device_group_post"),
-            (shared.find("post-rulebase") if shared is not None else None, "shared_post"),
-        ) for r in _parse_scoped_nat_rules(container, label)],
+        "nat_rules": nat_rules,
         "security_profiles": security_profiles,
         "profile_groups": profile_groups,
         "syslog_profiles": syslog_count,
@@ -394,23 +521,12 @@ def build_assessment_data(config_root: ET.Element, device_group_name: str) -> di
         "mgmt_plane": parse_mgmt_plane(resolved_configs),
         "ha_config": parse_ha_config(resolved_configs),
         "vpn": parse_vpn(resolved_configs),
-        "dos": parse_dos(
-            ([shared] if shared is not None else []) + [dg],
-            [(rb, label) for rb, label in (
-                (shared.find("pre-rulebase") if shared is not None else None, "shared_pre"),
-                (dg.find("pre-rulebase"), "device_group_pre"),
-                (dg.find("post-rulebase"), "device_group_post"),
-                (shared.find("post-rulebase") if shared is not None else None, "shared_post"),
-            ) if rb is not None]),
+        "dos": parse_dos(scope_els, rulebases_in_order),
         "session_settings": parse_session_settings(resolved_configs),
-        "log_forwarding_profiles": parse_log_forwarding_profiles(([shared] if shared is not None else []) + [dg]),
+        "log_forwarding_profiles": parse_log_forwarding_profiles(scope_els),
         "device_settings": parse_device_settings(resolved_configs),
         "identity": parse_identity(resolved_configs),
         "certificates": parse_certificates(resolved_configs),
         "object_usage": unavailable_for_panorama(),
-        "misc_policy": parse_misc_policy(
-            [rb for rb in (shared.find("pre-rulebase") if shared is not None else None, dg.find("pre-rulebase"),
-                           dg.find("post-rulebase"), shared.find("post-rulebase") if shared is not None else None)
-             if rb is not None],
-            resolved_configs),
+        "misc_policy": parse_misc_policy([el for el, _ in rulebases_in_order], resolved_configs),
     }

@@ -205,6 +205,26 @@ def store_config(session: Session, assessment: Assessment, config_xml: bytes, pl
     session.commit()
 
 
+def stage_panorama(session: Session, filename: str, config_xml: bytes, cli_text: Optional[str] = None) -> dict:
+    """Keeps a Panorama config until the user picks which firewall to assess. Panorama's tech support
+    file also carries its own device list, which gives hostnames the config doesn't."""
+    root = ET.fromstring(config_xml)
+    serials = [d["serial"] for d in panorama_parser.list_devices(root)]
+    hostnames = tsf_parser.parse_cli_managed_devices(cli_text, serials) if cli_text else {}
+    devices = panorama_parser.list_devices(root, hostnames)
+    staged = PanoramaUpload(filename=filename, raw_xml=config_xml, devices=devices)
+    session.add(staged)
+    session.commit()
+    session.refresh(staged)
+    return {
+        "panorama_export": True,
+        "upload_id": staged.id,
+        "filename": staged.filename,
+        "devices": devices,
+        "device_groups": panorama_parser.list_device_groups(root),
+    }
+
+
 @app.post("/api/assessments/upload")
 async def upload_assessment(file: UploadFile, session: Session = Depends(get_session)):
     raw = await file.read()
@@ -212,6 +232,10 @@ async def upload_assessment(file: UploadFile, session: Session = Depends(get_ses
     if tsf_parser.looks_like_tsf(file.filename or "", raw):
         try:
             config_xml, cli_text = tsf_parser.extract_config_and_cli_text(raw)
+            if panorama_parser.is_panorama_export(ET.fromstring(config_xml)):
+                # Panorama's own tech support file: its config is a Panorama export, assessed one device
+                # group at a time like one.
+                return stage_panorama(session, file.filename or "techsupport.tgz", config_xml, cli_text)
             data = tsf_parser.build_assessment_data_from_parts(config_xml, cli_text)
         except (ValueError, tarfile.TarError, ET.ParseError) as e:
             raise HTTPException(status_code=400, detail=f"Could not read tech support file: {e}")
@@ -244,16 +268,7 @@ async def upload_assessment(file: UploadFile, session: Session = Depends(get_ses
         raise HTTPException(status_code=400, detail=rejection)
 
     if panorama_parser.is_panorama_export(config_root):
-        staged = PanoramaUpload(filename=file.filename or "config.xml", raw_xml=raw)
-        session.add(staged)
-        session.commit()
-        session.refresh(staged)
-        return {
-            "panorama_export": True,
-            "upload_id": staged.id,
-            "filename": staged.filename,
-            "device_groups": panorama_parser.list_device_groups(config_root),
-        }
+        return stage_panorama(session, file.filename or "config.xml", raw)
 
     data = parser.parse_config(raw)
     assessment = Assessment(
@@ -283,13 +298,19 @@ def create_from_panorama(body: FromPanoramaRequest, session: Session = Depends(g
 
     config_root = ET.fromstring(staged.raw_xml)
     try:
-        data = panorama_parser.build_assessment_data(config_root, body.device_group)
+        if body.serial:
+            known = next((d for d in staged.devices or [] if d.get("serial") == body.serial), {})
+            data = panorama_parser.build_assessment_data_for_device(config_root, body.serial, known.get("hostname"))
+        elif body.device_group:
+            data = panorama_parser.build_assessment_data(config_root, body.device_group)
+        else:
+            raise ValueError("Choose a firewall (or a device group) to assess")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     assessment = Assessment(
         filename=staged.filename,
-        hostname=body.device_group,
+        hostname=data["system_info"]["hostname"],
         source="panorama_export",
         parsed_data=data,
         serial=serial_from_data(data),
@@ -318,7 +339,8 @@ def list_assessments(session: Session = Depends(get_session)):
             **assessment_identity(a),
             "source": a.source, "uploaded_at": a.uploaded_at.isoformat(),
             "summary": summary,
-            "panorama_managed": a.parsed_data.get("panorama_managed", False),
+            "panorama_managed": a.parsed_data.get("panorama_managed", False)
+                                and not parser.panorama_appliance(a.parsed_data),
         })
     return out
 
@@ -361,6 +383,8 @@ def get_assessment(assessment_id: int, session: Session = Depends(get_session)):
         "threat_intel": threat_intel.coverage(assessment.parsed_data),
         "advisories": advisory_report,
         "remediation": remediation.build(findings, summary["weights"], advisory_report.get("recommended")),
+        "cli_unavailable": cli.unavailable_reason(assessment.parsed_data),
+        "panorama_appliance": parser.panorama_appliance(assessment.parsed_data),
         "rulebase": {**rulebase.analyze(assessment.parsed_data),
                      "duplicates": find_duplicates(assessment.parsed_data.get("policy_objects") or {})},
         "scm": scm_status(assessment, session),
@@ -371,14 +395,24 @@ def get_assessment(assessment_id: int, session: Session = Depends(get_session)):
     }
 
 
+PANORAMA_TSF_REUPLOAD = ("this is Panorama's own tech support file. Upload it again and choose a device group "
+                         "to assess that group's policy")
+
+
 def reparse(assessment: Assessment, stored: AssessmentConfig) -> dict:
     """The assessment's data, parsed again from its stored source with the current parser."""
     config_xml = gzip.decompress(stored.config_gz)
     if stored.platform == "panorama":
+        resolved = assessment.parsed_data.get("panorama") or {}
+        if resolved.get("mode") == "device":
+            return panorama_parser.build_assessment_data_for_device(
+                ET.fromstring(config_xml), resolved["serial"], assessment.hostname)
         device_group = assessment.parsed_data.get("device_group") or assessment.hostname
         return panorama_parser.build_assessment_data(ET.fromstring(config_xml), device_group)
     if assessment.source != "tsf_upload":
         return parser.parse_config(config_xml)
+    if panorama_parser.is_panorama_export(ET.fromstring(config_xml)):
+        raise ValueError(PANORAMA_TSF_REUPLOAD)
     if stored.cli_text_gz is not None:
         return tsf_parser.build_assessment_data_from_parts(config_xml, gzip.decompress(stored.cli_text_gz).decode())
     # Uploaded before the CLI output was kept: re-parse the config, keep what the CLI output gave.

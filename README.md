@@ -14,7 +14,7 @@ It replaces an older script pipeline (`collect_data.py` → `generate_report.py`
 | **Backend** | Python · FastAPI · SQLModel (SQLite by default, Postgres supported) |
 | **Frontend** | React 19 · Vite · TypeScript · Tailwind CSS v4 |
 | **Checks** | 190 core rules (181 on by default), 133 of them mapped to 187 Palo Alto SCM checks |
-| **Inputs** | PAN-OS config export (XML), tech support file (`.tgz`), Panorama export (per device group) |
+| **Inputs** | PAN-OS config export (XML), tech support file (`.tgz`), Panorama export or Panorama tech support file (per managed firewall) |
 | **Outputs** | Interactive dashboard, printable/PDF report with cover, sections and appendix |
 
 ## Install
@@ -39,7 +39,7 @@ It opens the dashboard at `http://localhost:8080` and prints your login. Run the
 ![How the PA BPA Dashboard works: upload, parse, check and score, present — with the database underneath](docs/images/how-it-works.png)
 
 1. **Upload.** The file is validated (it must be a PAN-OS configuration), parsed into a normalized data shape, and the original source is stored so it can be re-analyzed or sent to Palo Alto SCM later.
-2. **Parse.** Three parsers produce the same shape: a firewall config export, a tech support file (config plus CLI output for system info, licenses and HA state), or one device group of a Panorama export (shared + device-group objects and pre/post rulebases, with template settings resolved).
+2. **Parse.** Three parsers produce the same shape: a firewall config export, a tech support file (config plus CLI output for system info, licenses and HA state), or one managed firewall from a Panorama export or Panorama tech support file (Shared and every device group above the firewall, in PAN-OS rule order, plus its assigned template stack).
 3. **Check and score.** Findings are **computed live every time an assessment is opened**, from the stored parsed data and the current rule settings. Changing a rule's severity, disabling a rule or adjusting scoring weights updates every assessment immediately.
 4. **Present.** The dashboard shows the score, findings and analysis in tabs; the same view prints as a report.
 
@@ -126,6 +126,8 @@ An assessment can optionally be sent to **Palo Alto's own BPA** in Strata Cloud 
 The **remediation plan** groups scored findings into pieces of work an engineer would do in one go, most urgent first, with the risk points each would remove.
 
 Where a fix is mechanical, a **CLI** button produces paste-ready PAN-OS commands: attaching profile groups, hardening security-profile settings, disabling unused rules, deleting unused objects (groups before members). Values the config can't supply become dropdowns of existing objects or placeholders. Commands enter configure mode and stage changes; the engineer reviews with `show | compare` and commits. Built-in profiles get no commands (clone them first).
+
+**Panorama-managed firewalls get no commands** when assessed from their own config export or tech support file: those don't say which rules and settings Panorama pushed, and changes typed at the firewall would miss them or be undone by the next push. The dashboard says so in the Remediation plan and Findings tabs; make the changes in Panorama. An assessment made from a **Panorama export** (one managed firewall) does get commands, written for Panorama: each rule or profile is changed in the device group it comes from.
 
 ## Reports & Printing
 

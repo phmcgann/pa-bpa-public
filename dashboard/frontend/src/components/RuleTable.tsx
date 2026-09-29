@@ -65,6 +65,7 @@ export function RuleTable({ rules, findings }: { rules: SecurityRule[]; findings
                 {showScope && (
                   <td style={{ color: "var(--text-secondary)", fontSize: 12 }}>
                     {r.rule_scope ? RULE_SCOPE_LABEL[r.rule_scope] : "—"}
+                    {r.scope_name && <div className="text-[12px] text-fg-muted">{r.scope_name}</div>}
                   </td>
                 )}
                 <td>

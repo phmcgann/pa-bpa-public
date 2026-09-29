@@ -110,6 +110,8 @@ export interface SecurityRule {
   tags: string[];
   log_setting?: string | null;
   rule_scope: RuleScope | null;
+  /** On Panorama: the device group the rule comes from (null for Shared). */
+  scope_name?: string | null;
 }
 
 export interface Zone {
@@ -237,6 +239,8 @@ export interface DecryptionRule {
   type: string;
   profile: string | null;
   rule_scope: RuleScope | null;
+  /** On Panorama: the device group the rule comes from (null for Shared). */
+  scope_name?: string | null;
 }
 
 export interface DecryptionProfile {
@@ -502,6 +506,8 @@ export interface NatRule {
   source_translation: { type: string; translated: string[]; interface: string | null; bidirectional: boolean } | null;
   destination_translation: { type: string; address: string | null; port: string | null } | null;
   rule_scope: RuleScope | null;
+  /** On Panorama: the device group the rule comes from (null for Shared). */
+  scope_name?: string | null;
   vsys?: string | null;
 }
 
@@ -538,6 +544,9 @@ export interface AdvisoryReport {
 
 export interface AssessmentData {
   panorama_managed: boolean;
+  /** Set when resolved from Panorama: what the assessment was built from. */
+  panorama?: PanoramaResolution;
+  device_group?: string | null;
   certificates?: { certificates: Certificate[] };
   nat_rules?: NatRule[];
   object_usage?: {
@@ -572,6 +581,11 @@ export interface AssessmentData {
 export interface AssessmentDetail {
   /** The same firewall's run just before this one, if any. */
   previous_run?: { id: number; uploaded_at: string; filename: string } | null;
+  /** Why no CLI commands are offered (a Panorama-managed firewall's own export or tech support file). */
+  cli_unavailable?: string | null;
+  /** Parsed straight from Panorama's own config (an older upload of Panorama's tech support file): mixes
+   *  every device group. */
+  panorama_appliance?: boolean;
   id: number;
   filename: string;
   hostname: string | null;
@@ -689,6 +703,28 @@ export interface PanoramaDeviceGroup {
   reference_templates: string[];
 }
 
+/** A firewall Panorama manages, as offered in the upload picker. */
+export interface PanoramaDevice {
+  serial: string;
+  hostname: string | null;
+  /** Its own device group; device_groups lists the whole chain, top of the hierarchy first. */
+  device_group: string | null;
+  device_groups: string[];
+  template_stack: string | null;
+  /** Templates in priority order (the first one wins). */
+  templates: string[];
+}
+
+export interface PanoramaResolution {
+  mode: "device" | "device_group";
+  serial: string | null;
+  device_groups: string[];
+  template_stack: string | null;
+  templates: string[];
+  /** Whether the file recorded the device-group hierarchy (parent groups). */
+  hierarchy_known: boolean;
+}
+
 export interface UploadResult {
   id: number;
   filename: string;
@@ -700,6 +736,7 @@ export interface PanoramaUploadResult {
   upload_id: number;
   filename: string;
   device_groups: PanoramaDeviceGroup[];
+  devices?: PanoramaDevice[];
 }
 
 export interface RuleDef {

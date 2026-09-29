@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from ..parser import panorama_appliance
 from . import rulebase
 
 _BARE = re.compile(r"^[A-Za-z0-9._/:-]+$")
@@ -74,14 +75,15 @@ class Context:
         if scope == "shared":
             prefix = "shared "
         elif scope == "device_group":
-            prefix = f"device-group {q(self.dg)} "
+            prefix = f"device-group {q(p.get('scope_name') or self.dg)} "
         else:
             prefix = self.vsys_prefix(scope)
         return f"{prefix}profiles {PROFILE_TAGS[ptype]} {q(name)}"
 
     def rulebase(self, rule: dict, kind: str = "security") -> str:
         if rule.get("rule_scope"):
-            base = PANORAMA_RULEBASE[rule["rule_scope"]].format(dg=q(self.dg))
+            # A rule from a parent device group is changed in that group, not the firewall's own.
+            base = PANORAMA_RULEBASE[rule["rule_scope"]].format(dg=q(rule.get("scope_name") or self.dg))
             return f"{base} {kind} rules {q(rule['name'])}"
         return f"{self.vsys_prefix(rule.get('vsys'))}rulebase {kind} rules {q(rule['name'])}"
 
@@ -482,8 +484,36 @@ def for_finding(finding: dict, ctx: Context) -> Optional[dict]:
             "order": out.get("order", 0)}
 
 
+PANORAMA_MANAGED_NOTE = (
+    "Panorama manages this firewall, so CLI commands aren't offered for it. Rules, profiles and settings "
+    "Panorama pushes can't be changed at the firewall, and the next push would undo local changes to them. "
+    "Make these changes in Panorama, in the firewall's device group and template, then push.")
+
+
+PANORAMA_APPLIANCE_NOTE = (
+    "This assessment is from Panorama's own tech support file, so it mixes every device group and no CLI "
+    "commands are offered. Upload the file again and choose a device group: that assessment gets commands "
+    "written for Panorama.")
+
+
+def unavailable_reason(data: dict) -> str | None:
+    """Why no commands are offered for this assessment, or None when they are. Assessments made from a
+    Panorama export (one device group) do get commands, written for Panorama; a Panorama-managed
+    firewall's own export or tech support file doesn't say which settings were pushed, so commands for
+    it would target the wrong place."""
+    if panorama_appliance(data):
+        return PANORAMA_APPLIANCE_NOTE
+    if data.get("panorama_managed") and not data.get("device_group"):
+        return PANORAMA_MANAGED_NOTE
+    return None
+
+
 def annotate(findings: list[dict], data: dict) -> None:
     """Adds a `cli` entry (or None) to each finding."""
+    if unavailable_reason(data):
+        for f in findings:
+            f["cli"] = None
+        return
     ctx = Context(data)
     for f in findings:
         f["cli"] = for_finding(f, ctx)

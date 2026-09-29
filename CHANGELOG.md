@@ -3,6 +3,20 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.2] - 2026-09-29
+
+### Remediation
+- Panorama-managed firewalls assessed from their own export or tech support file no longer get Copy CLI commands, which would have been typed at the firewall for rules and settings Panorama pushes. The Remediation plan and Findings tabs explain why and point to Panorama instead. Assessments from a Panorama export still get commands for their device group.
+- Panorama exports and Panorama's own tech support file are now assessed per firewall: pick a managed firewall and it's resolved the way Panorama builds its configuration, from Shared and every device group above it (pre-rules top-down, post-rules bottom-up, a lower group's object winning) plus the template stack it's assigned (first template wins). Before, only one device group and its reference templates were used. CLI commands change each rule or profile in the device group it comes from.
+- Panorama's own tech support file now goes to that picker, like a Panorama export. Before, it was assessed as a single device, mixing every device group, and labelled a Panorama-managed firewall. Assessments already made that way say so and ask for the file to be uploaded again.
+
+### Installing
+- The Windows installer can start Docker Desktop when it was installed per user (Docker's current default), not only for all users.
+- The install guide matches Docker Desktop's current installer, which offers a per-user installation, and now has screenshots for every Windows step.
+
+### Releases
+- Release images build faster and more reliably: the frontend is compiled once instead of under emulation for each processor type.
+
 ## [1.0.1] - 2026-09-29
 
 ### Checks

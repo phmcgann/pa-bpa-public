@@ -8,7 +8,7 @@ import { Callout } from "../components/ui/Callout";
 import { Card } from "../components/ui/Card";
 import { PageHeader } from "../components/ui/PageHeader";
 import { cn } from "../lib/cn";
-import type { PanoramaDeviceGroup, PanoramaUploadResult } from "../types";
+import type { PanoramaDevice, PanoramaDeviceGroup, PanoramaUploadResult } from "../types";
 
 const ACCEPT = ".xml,.tgz,.tar.gz";
 
@@ -40,14 +40,14 @@ function BatchRow({ item, onPanorama }: { item: BatchItem; onPanorama: (p: Panor
           {item.status === "working" && "Analyzing…"}
           {item.status === "done" && <>Assessed{item.hostname && item.hostname !== "N/A" ? ` as ${item.hostname}` : ""}</>}
           {item.status === "failed" && <span className="text-critical-fg">{item.error}</span>}
-          {item.status === "panorama" && "Panorama export — pick a device group to assess"}
+          {item.status === "panorama" && "Panorama config — pick a firewall to assess"}
         </div>
       </div>
       {item.status === "done" && item.id != null && (
         <Link to={`/assessments/${item.id}`} className="text-[13px] font-medium text-accent-fg hover:underline shrink-0">Open</Link>
       )}
       {item.status === "panorama" && item.panorama && (
-        <Button size="sm" onClick={() => onPanorama(item.panorama!)}>Choose device group</Button>
+        <Button size="sm" onClick={() => onPanorama(item.panorama!)}>Choose firewall</Button>
       )}
     </li>
   );
@@ -79,6 +79,96 @@ function FileKind({ icon, title, badge, path, children }: {
         <p className="text-[12.5px] text-fg-2 leading-5 mt-1.5 mb-0">{children}</p>
       </div>
     </li>
+  );
+}
+
+/** The firewalls a Panorama config manages; picking one resolves its device groups and template stack. */
+function FirewallPicker({ filename, devices, busy, error, onPick, onBack }: {
+  filename: string;
+  devices: PanoramaDevice[];
+  busy: string | null;
+  error: string | null;
+  onPick: (serial: string) => void;
+  onBack: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = devices.filter((d) =>
+    !q || [d.hostname ?? "", d.serial, ...d.device_groups, d.template_stack ?? "", ...d.templates]
+      .some((v) => v.toLowerCase().includes(q))
+  );
+  return (
+    <div className="animate-in max-w-3xl">
+      <PageHeader
+        breadcrumb={<Breadcrumb here="Panorama" />}
+        title="Which firewall?"
+        description={
+          <>
+            <span className="text-fg font-medium">{filename}</span> is from Panorama, which manages {devices.length} firewall
+            {devices.length === 1 ? "" : "s"}. Pick one: it's assessed with every device group above it (Shared first) and
+            the template stack it's assigned, the way Panorama builds its configuration.
+          </>
+        }
+      />
+      <Card flush>
+        {devices.length > 6 && (
+          <div className="px-4 pt-4 pb-3 border-b border-divider">
+            <div className="relative">
+              <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-faint pointer-events-none" aria-hidden="true" />
+              <input
+                type="search"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search firewalls, serials, device groups, templates…"
+                aria-label="Search firewalls"
+                className="w-full pl-8"
+              />
+            </div>
+          </div>
+        )}
+        <ul className="m-0 p-0 list-none">
+          {shown.map((d) => (
+            <li key={d.serial} className="border-b border-divider last:border-b-0">
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => onPick(d.serial)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left bg-transparent border-0 hover:bg-surface-2 transition-colors disabled:opacity-60"
+              >
+                <span className="size-9 shrink-0 rounded-lg bg-surface-3 text-fg-2 inline-flex items-center justify-center">
+                  <Server size={16} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-medium text-fg">
+                    {d.hostname ?? <span className="text-fg-2">Hostname not in file</span>}
+                    <span className="ml-2 text-[12px] font-normal text-fg-muted tab-num">S/N {d.serial}</span>
+                  </span>
+                  <span className="block text-[12px] text-fg-muted mt-0.5">
+                    Device groups: {["Shared", ...d.device_groups].join(" › ")}
+                  </span>
+                  <span className="block text-[12px] text-fg-muted">
+                    {d.template_stack
+                      ? <>Template stack: {d.template_stack} ({d.templates.join(", ")})</>
+                      : d.templates.length ? <>Template: {d.templates.join(", ")}</> : "No template stack assigned"}
+                  </span>
+                </span>
+                {busy === d.serial
+                  ? <Loader2 size={16} className="animate-spin text-fg-muted" aria-label="Building assessment" />
+                  : <ChevronRight size={16} className="text-fg-faint" aria-hidden="true" />}
+              </button>
+            </li>
+          ))}
+          {shown.length === 0 && (
+            <li className="px-4 py-8 text-center text-[13px] text-fg-muted">No firewalls match.</li>
+          )}
+        </ul>
+      </Card>
+      {error && <Callout tone="warning" className="mt-4" title="Couldn't build the assessment.">{error}</Callout>}
+      <Button variant="ghost" className="mt-4 -ml-2" onClick={onBack}>
+        <ArrowLeft size={15} />Upload a different file
+      </Button>
+    </div>
   );
 }
 
@@ -171,7 +261,7 @@ export function UploadPage() {
   const [busyGroup, setBusyGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [panoramaChoice, setPanoramaChoice] = useState<
-    { uploadId: number; filename: string; deviceGroups: PanoramaDeviceGroup[] } | null
+    { uploadId: number; filename: string; deviceGroups: PanoramaDeviceGroup[]; devices: PanoramaDevice[] } | null
   >(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -211,7 +301,8 @@ export function UploadPage() {
     try {
       const result = await api.uploadAssessment(file);
       if ("panorama_export" in result) {
-        setPanoramaChoice({ uploadId: result.upload_id, filename: result.filename, deviceGroups: result.device_groups });
+        setPanoramaChoice({ uploadId: result.upload_id, filename: result.filename, deviceGroups: result.device_groups,
+          devices: result.devices ?? [] });
       } else {
         navigate(`/assessments/${result.id}`);
       }
@@ -223,18 +314,31 @@ export function UploadPage() {
     }
   }
 
-  async function handlePickDeviceGroup(name: string) {
+  async function handlePickPanorama(key: string, choice: { serial: string } | { device_group: string }) {
     if (!panoramaChoice) return;
     setError(null);
-    setBusyGroup(name);
+    setBusyGroup(key);
     try {
-      const result = await api.createFromPanorama(panoramaChoice.uploadId, name);
+      const result = await api.createFromPanorama(panoramaChoice.uploadId, choice);
       navigate(`/assessments/${result.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to build assessment");
     } finally {
       setBusyGroup(null);
     }
+  }
+
+  if (panoramaChoice && panoramaChoice.devices.length > 0) {
+    return (
+      <FirewallPicker
+        filename={panoramaChoice.filename}
+        devices={panoramaChoice.devices}
+        busy={busyGroup}
+        error={error}
+        onPick={(serial) => handlePickPanorama(serial, { serial })}
+        onBack={() => { setPanoramaChoice(null); setError(null); }}
+      />
+    );
   }
 
   if (panoramaChoice) {
@@ -244,7 +348,7 @@ export function UploadPage() {
         groups={panoramaChoice.deviceGroups}
         busy={busyGroup}
         error={error}
-        onPick={handlePickDeviceGroup}
+        onPick={(name) => handlePickPanorama(name, { device_group: name })}
         onBack={() => { setPanoramaChoice(null); setError(null); }}
       />
     );
@@ -339,7 +443,8 @@ export function UploadPage() {
                   <BatchRow
                     key={`${item.name}-${i}`}
                     item={item}
-                    onPanorama={(p) => setPanoramaChoice({ uploadId: p.upload_id, filename: p.filename, deviceGroups: p.device_groups })}
+                    onPanorama={(p) => setPanoramaChoice({ uploadId: p.upload_id, filename: p.filename, deviceGroups: p.device_groups,
+                      devices: p.devices ?? [] })}
                   />
                 ))}
               </ul>
@@ -376,7 +481,8 @@ export function UploadPage() {
               title="Panorama export"
               path="Panorama → Setup → Operations → Export named Panorama configuration snapshot"
             >
-              You'll pick which device group to assess after uploading.
+              You'll pick which firewall to assess after uploading: it's resolved from every device group above it and
+              its template stack. Panorama's own tech support file works the same way.
             </FileKind>
           </ul>
         </Card>

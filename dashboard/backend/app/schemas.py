@@ -46,7 +46,10 @@ class LiveConnectRequest(BaseModel):
 
 class FromPanoramaRequest(BaseModel):
     upload_id: int
-    device_group: str
+    # A managed firewall's serial (its device groups and template stack are worked out from it), or,
+    # as before, a device group.
+    serial: Optional[str] = None
+    device_group: Optional[str] = None
 
 
 class ScmSettingsUpdateRequest(BaseModel):

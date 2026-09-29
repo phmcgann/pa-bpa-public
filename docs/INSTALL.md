@@ -53,15 +53,16 @@ You need:
 2. Click **Download Docker Desktop**, then choose **Download for Windows – AMD64**. (Only choose **ARM64** if your computer has a Qualcomm Snapdragon processor; almost all Windows PCs are AMD64.)
 3. Wait for the file **`Docker Desktop Installer.exe`** to finish downloading. It's about 500 MB.
 
-> 📷 **Screenshot to add: `docs/images/install/win-01-download.png`**, Docker's download page with the **Download for Windows – AMD64** option visible.
+![Docker's download page with the Download Docker Desktop menu open, showing Download for Windows – AMD64](images/install/win-01-download.png)
 
 ### W2. Install Docker Desktop
 
 1. Open your **Downloads** folder and double-click **`Docker Desktop Installer.exe`**.
 2. If Windows asks **"Do you want to allow this app to make changes to your device?"**, click **Yes**.
-3. On the **Configuration** screen, make sure **"Use WSL 2 instead of Hyper-V (recommended)"** is **ticked**. Leave the other options as they are. Click **Ok**.
+3. On the **Configuration** screen, leave **Per-user installation (Recommended)** selected. It needs no administrator password and uses WSL 2, which is what the dashboard needs. Leave **Add shortcut to desktop** ticked and click **OK**.
+   (Older versions of the installer don't have this choice. They show a **"Use WSL 2 instead of Hyper-V"** box instead: make sure it's ticked, then click **Ok**. If you choose **All-users installation**, keep **Use WSL 2 instead of Hyper-V** ticked and **Allow Windows Containers** unticked.)
 
-   > 📷 **Screenshot to add: `docs/images/install/win-02-configuration.png`**, the installer's Configuration screen with "Use WSL 2 instead of Hyper-V" ticked.
+   ![The Docker Desktop installer's Configuration screen with Per-user installation (Recommended) selected](images/install/win-02-configuration.png)
 
 4. Wait while it installs. This takes a few minutes.
 5. When it says **Installation succeeded**, click **Close and restart** (or **Close**, then restart your computer yourself from the Start menu). **Restarting is required.**
@@ -78,7 +79,7 @@ You need:
    then restart the computer and open Docker Desktop again.
 5. Wait until the bottom-left corner of the Docker Desktop window shows **Engine running** with a green indicator. The first start can take a few minutes.
 
-> 📷 **Screenshot to add: `docs/images/install/win-03-engine-running.png`**, the Docker Desktop window with **Engine running** shown bottom-left.
+![Docker Desktop's Containers page with Engine running shown bottom-left](images/install/win-03-engine-running.png)
 
 > If Docker Desktop shows an error about **virtualization** being disabled, see [Troubleshooting](#virtualization-is-disabled-windows).
 
@@ -87,7 +88,7 @@ You need:
 1. Click **Start** (the Windows logo), type **PowerShell**, and click **Windows PowerShell**. You do **not** need "Run as administrator".
 2. A window with a blue or black background opens, with a line ending in `>`. This is where you'll paste the install command.
 
-> 📷 **Screenshot to add: `docs/images/install/win-04-powershell.png`**, the Start menu search showing **Windows PowerShell**.
+![The Start menu search for PowerShell with Windows PowerShell as the best match](images/install/win-04-powershell.png)
 
 ### W5. Run the installer
 
@@ -108,7 +109,7 @@ You need:
 
    **Write the password down or keep the file:** it's also saved in `C:\Users\<your name>\pa-bpa\pa-bpa-login.txt`.
 
-> 📷 **Screenshot to add: `docs/images/install/win-05-installer-done.png`**, the PowerShell window after the installer finished, showing "PA BPA Dashboard is ready" and the login (blur the password).
+![PowerShell after the installer finished, showing the five steps, PA BPA Dashboard is ready and the login (password blurred). Here port 8080 was taken, so it used 8081](images/install/win-05-installer-done.png)
 
 > If Windows Defender Firewall asks whether to allow **Docker Desktop** or **com.docker.backend** to communicate, click **Allow**. The dashboard itself only listens on your own computer.
 
@@ -192,7 +193,7 @@ Continue with **[First login](#first-login)**.
    - **Username:** `admin`
    - **Password:** the one the installer printed (also in `pa-bpa-login.txt`).
 
-   > 📷 **Screenshot to add: `docs/images/install/login-prompt.png`**, the browser's sign-in box for localhost:8080.
+   ![The browser's Sign in box for the dashboard (here on port 8081, because 8080 was taken)](images/install/login-prompt.png)
 
 3. You'll see the empty **Assessments** page:
 

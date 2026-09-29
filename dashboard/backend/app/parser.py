@@ -22,6 +22,7 @@ Two root shapes are supported:
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 import xml.etree.ElementTree as ET
 
@@ -1682,6 +1683,27 @@ def parse_mgmt_plane(layers: list[ET.Element]) -> dict:
 
 # ── Panorama management detection ────────────────────────────────────────
 
+def is_panorama_config(config_root: ET.Element) -> bool:
+    """True for Panorama's own configuration (it holds device groups), as found in a Panorama export or
+    in Panorama's tech support file. The same test as panorama_parser.is_panorama_export."""
+    return len(config_root.findall("devices/entry/device-group/entry")) > 0
+
+
+# Panorama's model names: "Panorama" for the virtual appliance, M-100 … M-700 for the hardware ones.
+_PANORAMA_MODEL = re.compile(r"^(Panorama|M-\d+)$", re.IGNORECASE)
+
+
+def panorama_appliance(data: dict) -> bool:
+    """An assessment parsed straight from Panorama's own config (its tech support file, uploaded before
+    those were routed to the device-group picker): its results mix every device group. Assessments from
+    before the flag existed are recognised by the model in their system info."""
+    if data.get("device_group"):
+        return False  # one device group of a Panorama export: assessed properly
+    if data.get("panorama_appliance"):
+        return True
+    return bool(_PANORAMA_MODEL.match((data.get("system_info") or {}).get("model") or ""))
+
+
 def detect_panorama_managed(config_root: ET.Element) -> bool:
     """A firewall managed by Panorama pushes its actual security policy
     (zones, rules, profiles, profile groups, address objects) from Panorama's
@@ -1690,6 +1712,8 @@ def detect_panorama_managed(config_root: ET.Element) -> bool:
     Verified against a real Panorama-managed export: <deviceconfig><system>
     <panorama><local-panorama> is present there and absent from two
     independently-checked locally-managed exports."""
+    if is_panorama_config(config_root):
+        return False  # Panorama's own config also has a deviceconfig/system/panorama section
     return config_root.find(".//deviceconfig/system/panorama") is not None
 
 
@@ -1733,6 +1757,7 @@ def parse_config(xml_bytes: bytes) -> dict:
 
     return {
         "panorama_managed": detect_panorama_managed(config_root),
+        "panorama_appliance": is_panorama_config(config_root),
         "mgmt_interfaces": parse_mgmt_interfaces(config_root.findall(".//network/interface")),
         "policy_objects": parse_policy_objects(([shared] if shared is not None else []) + vsys_entries),
         "default_rule_actions": parse_default_rule_actions(

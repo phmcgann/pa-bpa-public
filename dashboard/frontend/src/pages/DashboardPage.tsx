@@ -86,6 +86,20 @@ const SOURCE_LABEL: Record<string, string> = {
 
 function SourceCallout({ assessment }: { assessment: AssessmentDetail }) {
   const { data } = assessment;
+  if (assessment.source === "panorama_export" && data.panorama?.mode === "device") {
+    const p = data.panorama;
+    return (
+      <Callout title={`Resolved from Panorama for firewall ${assessment.hostname || p.serial}.`}>
+        Device groups: <span className="text-fg">{["Shared", ...p.device_groups].join(" › ")}</span>
+        {p.template_stack
+          ? <>; template stack <span className="text-fg">{p.template_stack}</span> ({p.templates.join(", ")}, first wins).</>
+          : p.templates.length ? <>; template <span className="text-fg">{p.templates.join(", ")}</span>.</> : <>; no template stack assigned.</>}
+        {" "}Rules run in PAN-OS order (pre-rules top-down, post-rules bottom-up) and a lower device group's object wins.
+        {!p.hierarchy_known && " This file doesn't record parent device groups, so only the firewall's own group and Shared are included."}
+        {" "}Settings made locally on the firewall aren't in Panorama's config; PAN-OS version, licenses and HA state show as unavailable.
+      </Callout>
+    );
+  }
   if (assessment.source === "panorama_export") {
     return (
       <Callout title={`Resolved from a Panorama export — device group "${assessment.hostname || "unknown"}".`}>
@@ -93,6 +107,15 @@ function SourceCallout({ assessment }: { assessment: AssessmentDetail }) {
         NTP/login-banner settings come from the device group's template stack. This approximates Panorama's
         commit-time merge rather than replicating it. Admin accounts, PAN-OS version, licenses and HA state
         aren't derivable from a Panorama export and show as unavailable.
+      </Callout>
+    );
+  }
+  if (assessment.panorama_appliance) {
+    return (
+      <Callout tone="warning" title="This is Panorama's own tech support file, assessed as a single device.">
+        It holds every device group and template, so the results below mix them together and CLI commands aren't
+        offered. Upload the file again: you'll choose a device group, and that assessment covers its policy and
+        gets commands written for Panorama.
       </Callout>
     );
   }
@@ -789,7 +812,8 @@ export function DashboardPage() {
             title="Remediation plan"
             note="The scored findings grouped into pieces of work, most urgent first. Dismissed findings and findings on disabled rules aren't included."
           >
-            <RemediationPlan items={assessment.remediation} totalPoints={summary.score} findings={findings} />
+            <RemediationPlan items={assessment.remediation} totalPoints={summary.score} findings={findings}
+              cliUnavailable={assessment.cli_unavailable} />
           </SectionCard>
         </TabPanel>
       )}
@@ -801,6 +825,11 @@ export function DashboardPage() {
             title="All findings"
             note="Dismiss a finding you've reviewed and accept — it's hidden and excluded from the score, not deleted. Findings on disabled security rules are excluded automatically."
           >
+            {assessment.cli_unavailable && (
+              <Callout className="no-print mb-3 max-w-3xl" title="No CLI commands for this firewall.">
+                {assessment.cli_unavailable}
+              </Callout>
+            )}
             <FindingsTable
               findings={findings}
               view={view}
@@ -878,7 +907,7 @@ export function DashboardPage() {
                                 {r.name}
                                 {off && <span className="ml-2 text-[11px] text-fg-muted font-normal">Disabled</span>}
                               </td>
-                              {decryptionHasScope && <td className="text-fg-2">{r.rule_scope ? SCOPE_LABEL[r.rule_scope] : "—"}</td>}
+                              {decryptionHasScope && <td className="text-fg-2">{r.rule_scope ? SCOPE_LABEL[r.rule_scope] : "—"}{r.scope_name ? ` · ${r.scope_name}` : ""}</td>}
                               <td>{r.action}</td>
                               <td className="text-fg-2">{r.type}</td>
                               <td className={r.profile ? "" : "text-fg-muted"}>{r.profile ?? "None"}</td>

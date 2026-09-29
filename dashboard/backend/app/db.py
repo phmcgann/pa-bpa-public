@@ -25,6 +25,7 @@ _ADDED_COLUMNS = [
     ("assessmentnote", "carried_from_id", "INTEGER"),
     ("assessment", "reanalyzed_at", "TIMESTAMP"),
     ("assessmentconfig", "cli_text_gz", "BLOB"),
+    ("panoramaupload", "devices", "JSON"),
 ]
 
 

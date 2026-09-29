@@ -28,6 +28,8 @@ class PanoramaUpload(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     filename: str
     raw_xml: bytes = Field(sa_column=Column(LargeBinary))
+    # The managed firewalls offered in the picker (with hostnames read at upload time).
+    devices: Optional[list] = Field(default=None, sa_column=Column(JSON))
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
 
 

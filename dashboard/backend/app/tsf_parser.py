@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import fnmatch
 import io
+import re
 import tarfile
 
 from . import parser
@@ -190,6 +191,39 @@ def parse_cli_ha_status(cli_text: str) -> dict:
                   "treat this as unconfirmed rather than guessed. Connect a live device for a "
                   "reliable HA state.",
     }
+
+
+_HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def parse_cli_managed_devices(cli_text: str, serials: list[str]) -> dict[str, str]:
+    """Hostnames of Panorama's managed firewalls, by serial, from its own device list in the tech
+    support text ("show devices all"). Best effort: it reads both "serial: …" / "hostname: …" blocks
+    and tables with Serial and Hostname columns, and only for the serials Panorama's config lists."""
+    wanted = set(serials)
+    found: dict[str, str] = {}
+    current: str | None = None
+    columns: tuple[int, int] | None = None
+    for line in cli_text.splitlines():
+        stripped = line.strip()
+        kv = re.match(r"^(serial|hostname)\s*:\s*(\S+)$", stripped, re.IGNORECASE)
+        if kv:
+            key, value = kv.group(1).lower(), kv.group(2)
+            if key == "serial":
+                current = value if value in wanted else None
+            elif current and current not in found and _HOSTNAME.match(value) and value != current:
+                found[current] = value
+            continue
+        tokens = stripped.split()
+        lowered = [t.lower() for t in tokens]
+        if "serial" in lowered and "hostname" in lowered:
+            columns = (lowered.index("serial"), lowered.index("hostname"))
+            continue
+        if columns and len(tokens) > max(columns):
+            serial, host = tokens[columns[0]], tokens[columns[1]]
+            if serial in wanted and serial not in found and _HOSTNAME.match(host) and host != serial:
+                found[serial] = host
+    return found
 
 
 def build_assessment_data_from_tsf(raw: bytes) -> dict:
