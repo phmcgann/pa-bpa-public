@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import gzip
+from contextlib import asynccontextmanager
 import re
 import os
-from datetime import datetime
 from typing import Optional
 import tarfile
 import xml.etree.ElementTree as ET
@@ -17,7 +17,7 @@ from sqlmodel import Session, select
 from . import advisories, auth, content_info, panorama_parser, parser, remediation, scm_client, tsf_parser
 from .db import create_db_and_tables, get_session
 from .models import (Assessment, AssessmentConfig, AssessmentNote, DismissedFinding, PanoramaUpload, RuleSetting, ScmBpaRun,
-                     ScmSettings, ScoringSettings)
+                     ScmSettings, ScoringSettings, utcnow)
 from .object_usage import find_duplicates
 from .rules import builtin_profiles, cli, mgmt_exposure, rulebase, scm_catalog, scm_coverage, scm_findings, threat_intel
 from .rules.checks import inline_cloud_analysis_gate
@@ -33,7 +33,13 @@ ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")
 
-app = FastAPI(title="PA BPA Dashboard API")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    on_startup()
+    yield
+
+
+app = FastAPI(title="PA BPA Dashboard API", lifespan=_lifespan)
 
 
 @app.middleware("http")
@@ -56,7 +62,6 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
 def on_startup():
     create_db_and_tables()
     advisories.ensure_fresh()
@@ -496,7 +501,7 @@ def reanalyze_assessment(assessment_id: int, session: Session = Depends(get_sess
     except (ValueError, ET.ParseError) as e:
         raise HTTPException(status_code=400, detail=f"Could not re-analyze the stored file: {e}")
     assessment.parsed_data = data
-    assessment.reanalyzed_at = datetime.utcnow()
+    assessment.reanalyzed_at = utcnow()
     session.add(assessment)
     session.commit()
     session.refresh(assessment)
@@ -674,7 +679,7 @@ def run_scm_bpa(assessment_id: int, session: Session = Depends(get_session)):
         run.status, run.error = "failed", str(e)
     except Exception as e:  # network errors etc. — record, don't 500
         run.status, run.error = "failed", f"{type(e).__name__}: {e}"
-    run.ran_at = datetime.utcnow()
+    run.ran_at = utcnow()
     session.add(run)
     session.commit()
     if run.status == "failed":
@@ -840,11 +845,11 @@ def create_note(assessment_id: int, body: NoteCreateRequest, session: Session = 
                         .where(AssessmentNote.target_kind == body.target_kind)
                         .where(AssessmentNote.target_key == body.target_key)).first()
     if note is None:
-        now = datetime.utcnow()
+        now = utcnow()
         note = AssessmentNote(assessment_id=assessment_id, target_kind=body.target_kind, target_key=body.target_key,
                               target_label=body.target_label, body=text_, created_at=now, updated_at=now)
     else:
-        note.body, note.target_label, note.updated_at = text_, body.target_label, datetime.utcnow()
+        note.body, note.target_label, note.updated_at = text_, body.target_label, utcnow()
     session.add(note)
     session.commit()
     return notes_for(session, assessment_id)
@@ -855,7 +860,7 @@ def update_note(assessment_id: int, note_id: int, body: NoteUpdateRequest, sessi
     note = _get_note(session, assessment_id, note_id)
     if not body.body.strip():
         raise HTTPException(status_code=422, detail="The note is empty")
-    note.body, note.updated_at = body.body.strip(), datetime.utcnow()
+    note.body, note.updated_at = body.body.strip(), utcnow()
     session.add(note)
     session.commit()
     return notes_for(session, assessment_id)

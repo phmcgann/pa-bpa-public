@@ -3,6 +3,15 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.4] - 2026-10-16
+
+### Maintenance
+- Updated the backend to Python 3.14 and its packages (FastAPI, SQLModel, Uvicorn and others) to their current versions, and the frontend build to Node 24 (long-term support) and TypeScript 7, plus current versions of the frontend's other packages. Nothing changes in how the dashboard works or in stored data.
+- Release images are built with the current versions of Docker's build tools.
+
+### Fixes
+- The sidebar's sign-out button now has a label and its own row with the theme switch, so the sidebar footer no longer runs past the sidebar's edge when a website link is shown.
+
 ## [1.0.3] - 2026-10-14
 
 ### Checks

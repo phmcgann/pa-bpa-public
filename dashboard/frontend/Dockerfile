@@ -1,7 +1,8 @@
 # The built files are the same on every CPU, so build them once on the machine running the build
 # ($BUILDPLATFORM) instead of under emulation for each image architecture: npm under ARM emulation
 # is slow and can hang. Only the small nginx stage below is per-architecture.
-FROM --platform=$BUILDPLATFORM node:20-alpine AS build
+# Node's long-term-support line; CI builds with the same version (it reads it from this line).
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

@@ -1,8 +1,15 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
+from pydantic import NaiveDatetime
 from sqlalchemy import JSON, Column, LargeBinary
 from sqlmodel import Field, SQLModel
+
+
+def utcnow() -> datetime:
+    """The current time in UTC, without a timezone: how every timestamp here has always been stored.
+    The fields are NaiveDatetime so SQLModel keeps the existing timezone-less columns as they are."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Assessment(SQLModel, table=True):
@@ -10,7 +17,7 @@ class Assessment(SQLModel, table=True):
     filename: str
     hostname: Optional[str] = None
     source: str = "file_upload"  # "file_upload" | "live" (Phase 2) | "panorama_export"
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    uploaded_at: NaiveDatetime = Field(default_factory=utcnow)
     parsed_data: dict = Field(sa_column=Column(JSON))
     # Set by hand from the dashboard; None until someone assigns one.
     client_name: Optional[str] = Field(default=None, index=True)
@@ -18,7 +25,7 @@ class Assessment(SQLModel, table=True):
     # exports don't carry it, so it can also be entered by hand.
     serial: Optional[str] = None
     # When the stored source was last re-parsed with the current parser ("Re-analyze").
-    reanalyzed_at: Optional[datetime] = None
+    reanalyzed_at: Optional[NaiveDatetime] = None
 
 
 class PanoramaUpload(SQLModel, table=True):
@@ -30,7 +37,7 @@ class PanoramaUpload(SQLModel, table=True):
     raw_xml: bytes = Field(sa_column=Column(LargeBinary))
     # The managed firewalls offered in the picker (with hostnames read at upload time).
     devices: Optional[list] = Field(default=None, sa_column=Column(JSON))
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    uploaded_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class RuleSetting(SQLModel, table=True):
@@ -45,7 +52,7 @@ class DismissedFinding(SQLModel, table=True):
     assessment_id: int = Field(foreign_key="assessment.id", index=True)
     finding_key: str = Field(index=True)
     reason: Optional[str] = None
-    dismissed_at: datetime = Field(default_factory=datetime.utcnow)
+    dismissed_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class AssessmentNote(SQLModel, table=True):
@@ -58,8 +65,8 @@ class AssessmentNote(SQLModel, table=True):
     target_key: str
     target_label: str
     body: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)
     # Set on a note copied forward from the same firewall's previous run: that run's id.
     carried_from_id: Optional[int] = None
 
@@ -92,7 +99,7 @@ class ScmBpaRun(SQLModel, table=True):
     (check, object) — see scm_client.extract_results."""
     assessment_id: int = Field(foreign_key="assessment.id", primary_key=True)
     status: str  # "completed" | "failed"
-    ran_at: datetime = Field(default_factory=datetime.utcnow)
+    ran_at: NaiveDatetime = Field(default_factory=utcnow)
     task_id: Optional[str] = None
     error: Optional[str] = None
     results: Optional[list] = Field(default=None, sa_column=Column(JSON))

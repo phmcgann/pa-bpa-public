@@ -70,7 +70,7 @@ function SignOutButton({ compact }: { compact?: boolean }) {
       aria-label={label}
       className={cn(
         "inline-flex items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent text-fg-muted hover:text-fg hover:bg-surface-3",
-        compact ? "h-8 w-8" : "h-7 px-2 text-[12px]",
+        compact ? "h-8 w-8" : "h-7 px-2 -ml-2 text-[12px]",
       )}
     >
       <LogOut size={14} />
@@ -168,14 +168,15 @@ function Sidebar() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <ClientNav />
       </div>
-      <div className="pt-4 border-t border-line flex items-center justify-between gap-2 px-1">
-        {brand.website
-          ? <a href={brand.website.href} className="text-[12px] text-fg-muted hover:text-fg">{brand.website.label}</a>
-          : <span />}
-        <div className="flex items-center gap-1">
-          <SignOutButton compact />
-          <ThemeSwitch />
+      {/* Two rows: the sidebar is too narrow for the website link, sign-out and theme switch side by side. */}
+      <div className="pt-3 border-t border-line flex flex-col gap-2 px-1">
+        <div className="flex items-center justify-between gap-2">
+          <SignOutButton />
+          <div className="ml-auto"><ThemeSwitch /></div>
         </div>
+        {brand.website && (
+          <a href={brand.website.href} className="text-[12px] text-fg-muted hover:text-fg truncate">{brand.website.label}</a>
+        )}
       </div>
       </div>
     </aside>

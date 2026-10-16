@@ -1,4 +1,5 @@
-FROM python:3.12-slim
+# CI runs the backend tests on this same Python version (it reads it from this line).
+FROM python:3.14-slim
 
 WORKDIR /app
 
