@@ -23,6 +23,7 @@ values that are only a boolean or number — nothing that names the client's obj
 from __future__ import annotations
 
 from ..rules.definitions import RULES_BY_ID
+from . import scm_catalog
 from .builtin_profiles import unused_builtins
 from .checks import ALWAYS_ON, _agent_configs
 from .scm_findings import core_rules_by_scm_check
@@ -102,6 +103,7 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
         rule = RULES_BY_ID[rule_id]
         return rule_settings.get(rule_id, {}).get("enabled", rule.enabled_by_default)
 
+    known = scm_catalog.checks_by_id()
     checks = []
     for cid, all_fs in by_check.items():
         rules = linked.get(cid, [])
@@ -127,7 +129,9 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
                   and not f.get("duplicate_of")]
         checks.append({
             "check_id": cid, "title": fs[0]["title"], "category": fs[0]["category"], "severity": fs[0]["severity"],
-            "status": status, "objects": len(fs), "object_type": rows[0]["object_type"] if rows else None,
+            "status": status,
+            # Not in the bundled catalogue: Palo Alto added it after this dashboard's list was taken.
+            "new_check": cid not in known, "objects": len(fs), "object_type": rows[0]["object_type"] if rows else None,
             "not_applicable_objects": len(all_fs) - len(fs) if status != "not_applicable" else len(all_fs),
             "points": sum(weights.get(f["severity"], 0) for f in scored),
             "core_rules": [{"id": r, "title": RULES_BY_ID[r].title, "enabled": enabled(r), "findings": fired.get(r, 0)}
@@ -139,12 +143,16 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
     checks.sort(key=lambda c: (STATUS_ORDER.index(c["status"]), -c["points"], c["check_id"]))
     summary = {s: {"checks": sum(1 for c in checks if c["status"] == s),
                    "points": sum(c["points"] for c in checks if c["status"] == s)} for s in STATUS_ORDER}
-    return {"checks": checks, "summary": summary}
+    return {"checks": checks, "summary": summary, "new_checks": sum(1 for c in checks if c["new_check"]),
+            "catalog_as_of": scm_catalog.load()["retrieved"]}
 
 
 def as_text(coverage: dict) -> str:
     """Plain-text gap list to share for fixing core rules — check numbers, titles and field names only."""
     lines = ["Core rule coverage of the Palo Alto SCM run"]
+    if coverage.get("new_checks"):
+        lines.append(f"{coverage['new_checks']} failed checks are new from Palo Alto "
+                     f"(not in the bundled check list from {coverage.get('catalog_as_of')})")
     # Everything but "covered"; not_applicable is listed so it can be checked, but isn't a gap.
     for status in STATUS_ORDER[:-1]:
         rows = [c for c in coverage["checks"] if c["status"] == status]
@@ -157,5 +165,6 @@ def as_text(coverage: dict) -> str:
             na = f" (+{c['not_applicable_objects']} n/a)" if c.get("not_applicable_objects") and status != "not_applicable" else ""
             lines.append(f"SCM {c['check_id']} | {c['title']} | {c['object_type']} x{c['objects']}{na} | "
                          f"{c['points']} pts | Core: {rules} | fields: {', '.join(c['failed_fields']) or '-'}"
-                         + (f" | why: {c['reason']}" if c.get("reason") else ""))
+                         + (f" | why: {c['reason']}" if c.get("reason") else "")
+                         + (" | NEW: not in the bundled check list" if c.get("new_check") else ""))
     return "\n".join(lines)

@@ -25,6 +25,10 @@ services:
       SCM_TSG_ID: ${SCM_TSG_ID:-}
       # Palo Alto Networks security advisories for PAN-OS (on by default; "off" for air-gapped installs).
       PAN_ADVISORY_FEED: ${PAN_ADVISORY_FEED:-on}
+      # The dashboard's sign-in (the installer writes these to .env). Required: without a password
+      # hash the backend would have no sign-in at all.
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-admin}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?BASIC_AUTH_HASH must be set in .env}
     depends_on:
       db:
         condition: service_healthy
@@ -44,8 +48,6 @@ services:
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
-      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
-      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
     ports:
       - "80:80"
       - "443:443"

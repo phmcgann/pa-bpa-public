@@ -3,6 +3,19 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.3] - 2026-10-14
+
+### Checks
+- The PAN-OS end-of-life check now uses Palo Alto's published end-of-life dates. Before, it only flagged PAN-OS 9.x and older, so firewalls on 10.1, 10.2 or 11.0 passed. A release past end-of-life (standard and any extended support over) is **Critical**; one in extended support, or about to reach end-of-life with none to follow, is a **Warning**; one whose standard support is about to end is **Low**. How far ahead to warn is a setting (180 days by default).
+- The check also works for config exports, using the PAN-OS version stamped in the file (the System card shows it as "from config"). Re-analyze an existing assessment to pick it up.
+
+### Signing in
+- The dashboard has its own sign-in page instead of the browser's pop-up box. It uses the same username and password as before, so nothing needs to change in `.env`. You stay signed in for 12 hours, and a **sign-out** button sits at the bottom of the sidebar. After five wrong passwords in a row, sign-in pauses for up to 15 minutes. Run the install command again to update as usual: it also brings the new `Caddyfile` and `docker-compose.yml` this needs.
+
+### Keeping up with Palo Alto
+- **Settings → Palo Alto content** shows how current everything the checks know about Palo Alto is: the end-of-life dates, the SCM check list, the predefined profiles and the built-in IP lists (bundled with each release, marked *Review due* after six months), and the live security-advisory download.
+- After a Palo Alto SCM run, checks Palo Alto added since this release's SCM check list was taken are labelled **New from Palo Alto** in the coverage view, and marked in the copied gap list.
+
 ## [1.0.2] - 2026-09-29
 
 ### Remediation

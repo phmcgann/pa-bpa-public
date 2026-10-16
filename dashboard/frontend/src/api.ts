@@ -1,17 +1,26 @@
 import type {
-  AssessmentDetail, Note, NoteKind, ReanalyzeResult, AssessmentListItem, CompareResult, ClientSummary, PanoramaUploadResult, RuleDef, ScmCatalog, ScmStatus, ScoringSettings,
+  AssessmentDetail, Note, NoteKind, ReanalyzeResult, AssessmentListItem, CompareResult, ClientSummary, ContentInfo, PanoramaUploadResult, RuleDef, ScmCatalog, ScmStatus, ScoringSettings,
   UploadResult,
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+
+/** Called when the API says the session has ended (signed out elsewhere, expired, password changed). */
+let onSignedOut: (() => void) | null = null;
+export function setSignedOutHandler(fn: (() => void) | null) {
+  onSignedOut = fn;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: init?.body && !(init.body instanceof FormData)
       ? { "Content-Type": "application/json", ...init.headers }
       : init?.headers,
+    // The session cookie; the development server runs the API on another port.
+    credentials: "include",
     ...init,
   });
+  if (res.status === 401 && !path.startsWith("/api/auth/")) onSignedOut?.();
   if (!res.ok) {
     // FastAPI puts the human-readable reason in `detail`; fall back to the status line.
     const body = await res.text();
@@ -23,7 +32,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export interface AuthSession {
+  /** False when the server has no password set (a development server): no sign-in at all. */
+  enabled: boolean;
+  authenticated: boolean;
+  user: string | null;
+}
+
 export const api = {
+  authSession: () => request<AuthSession>("/api/auth/session"),
+  signIn: (username: string, password: string) =>
+    request<{ user: string | null }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  signOut: () => request<void>("/api/auth/logout", { method: "POST" }),
   uploadAssessment: (file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -74,6 +94,7 @@ export const api = {
   updateScmSettings: (body: { include_in_score: boolean }) =>
     request<{ include_in_score: boolean }>("/api/scm/settings", { method: "PATCH", body: JSON.stringify(body) }),
   getScoring: () => request<ScoringSettings>("/api/scoring"),
+  getContentInfo: () => request<ContentInfo>("/api/content"),
   updateScoring: (body: Partial<{
     weight_critical: number; weight_warning: number; weight_low: number; weight_informational: number;
     informational_max: number; low_max: number; warning_max: number;

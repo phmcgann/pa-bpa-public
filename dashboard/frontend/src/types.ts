@@ -567,6 +567,8 @@ export interface AssessmentData {
   zone_protection_profiles?: ZoneProtectionProfile[];
   interface_mgmt_profiles?: InterfaceMgmtProfile[];
   system_info: Record<string, any>;
+  /** The PAN-OS version a config export was saved by (release-level; not the exact hotfix). */
+  config_version?: { version: string | null; schema_version: string | null };
   licenses: { available: boolean; licenses: any[]; reason?: string };
   admin_accounts: AdminAccount[];
   zones: Zone[];
@@ -646,9 +648,35 @@ export interface ScmCoverage {
     points: number;
     core_rules: { id: string; title: string; enabled: boolean; findings: number }[];
     failed_fields: string[];
+    /** Not in the bundled SCM check list: Palo Alto added it after this release's list was taken. */
+    new_check?: boolean;
   }[];
   summary: Record<ScmCoverageStatus, { checks: number; points: number }>;
   text: string;
+  /** Failed checks that aren't in the bundled SCM check list: Palo Alto added them since. */
+  new_checks?: number;
+  catalog_as_of?: string;
+}
+
+/** How current the Palo Alto content bundled with the dashboard is (Settings). */
+export interface ContentItem {
+  id: string;
+  label: string;
+  /** bundled: a snapshot shipped with this release; live: downloaded while the dashboard runs. */
+  kind: "bundled" | "live";
+  as_of: string | null;
+  age_days: number | null;
+  review_due: boolean;
+  detail: string | null;
+  source: string | null;
+  /** live only */
+  status?: "ok" | "loading" | "error" | "disabled";
+  fetched_at?: string | null;
+}
+
+export interface ContentInfo {
+  items: ContentItem[];
+  review_after_days: number;
 }
 
 export interface ScmStatus {

@@ -81,6 +81,13 @@ def members(entry: Optional[ET.Element], path: str) -> list[str]:
 
 # ── System info (runtime-only; unavailable from a config export) ──────────
 
+def parse_config_version(config_root: ET.Element) -> dict:
+    """The PAN-OS version a config export was saved by: <config version="10.2.0" detail-version="10.2.9">.
+    Good enough for the release (10.2), not the exact hotfix, so advisories still need system info."""
+    detail, schema = config_root.get("detail-version"), config_root.get("version")
+    return {"version": detail or schema, "schema_version": schema}
+
+
 def parse_system_info(config_root: ET.Element, op_root: Optional[ET.Element] = None) -> dict:
     """op_root is the <show><system><info> op-command result, only present
     in live mode (Phase 2). From a config file we can still surface the
@@ -109,9 +116,8 @@ def parse_system_info(config_root: ET.Element, op_root: Optional[ET.Element] = N
     return {
         "available": False,
         "hostname": hostname or "N/A",
-        "reason": "PAN-OS version, serial, uptime, and content versions come from "
-                  "a live 'show system info' call, not the config file. Connect a "
-                  "live device to populate this section.",
+        "reason": "The exact PAN-OS version (with hotfix), model, serial, uptime and content versions "
+                  "come from a tech support file, not a config export. Upload one to fill in this section.",
     }
 
 
@@ -1768,6 +1774,7 @@ def parse_config(xml_bytes: bytes) -> dict:
         "zone_protection_profiles": zone_protection_profiles,
         "interface_mgmt_profiles": interface_mgmt_profiles,
         "system_info": parse_system_info(config_root),
+        "config_version": parse_config_version(config_root),
         "licenses": parse_licenses(),
         "admin_accounts": parse_admin_accounts(config_root),
         "zones": parse_zones(config_root),

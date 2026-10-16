@@ -8,12 +8,13 @@ from typing import Optional
 import tarfile
 import xml.etree.ElementTree as ET
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-from . import advisories, panorama_parser, parser, remediation, scm_client, tsf_parser
+from . import advisories, auth, content_info, panorama_parser, parser, remediation, scm_client, tsf_parser
 from .db import create_db_and_tables, get_session
 from .models import (Assessment, AssessmentConfig, AssessmentNote, DismissedFinding, PanoramaUpload, RuleSetting, ScmBpaRun,
                      ScmSettings, ScoringSettings)
@@ -23,7 +24,7 @@ from .rules.checks import inline_cloud_analysis_gate
 from .rules.definitions import RULES, RULES_BY_ID
 from .rules.engine import DEFAULT_THRESHOLDS, DEFAULT_WEIGHTS, run_rules, summarize
 from .schemas import (NOTE_KINDS, AssessmentUpdateRequest, DismissRequest, FromPanoramaRequest, LiveConnectRequest,
-                      NoteCreateRequest, NoteUpdateRequest, RuleUpdateRequest, ScmSettingsUpdateRequest,
+                      LoginRequest, NoteCreateRequest, NoteUpdateRequest, RuleUpdateRequest, ScmSettingsUpdateRequest,
                       ScoringUpdateRequest)
 
 VALID_SEVERITIES = {"CRITICAL", "WARNING", "LOW", "INFORMATIONAL"}
@@ -34,11 +35,24 @@ ALLOWED_ORIGINS = os.environ.get(
 
 app = FastAPI(title="PA BPA Dashboard API")
 
+
+@app.middleware("http")
+async def require_sign_in(request: Request, call_next):
+    """Every /api route except signing in needs a session (see auth.py), when sign-in is on."""
+    path = request.url.path
+    if (auth.enabled() and path.startswith("/api/") and not path.startswith("/api/auth/")
+            and request.method != "OPTIONS" and auth.session_user(request.cookies.get(auth.COOKIE)) is None):
+        return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
+    return await call_next(request)
+
+
+# Added after the sign-in check so it wraps it: a 401 still carries the CORS headers.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 
@@ -46,6 +60,49 @@ app.add_middleware(
 def on_startup():
     create_db_and_tables()
     advisories.ensure_fresh()
+    if not auth.enabled():
+        print("WARNING: BASIC_AUTH_HASH isn't set, so the dashboard has no sign-in. "
+              "Fine for development; the Docker Compose files always set it.", flush=True)
+
+
+# ── Signing in ───────────────────────────────────────────────────────────
+
+def _client(request: Request) -> str:
+    # Behind Caddy, the first X-Forwarded-For entry is the browser's address (Caddy replaces any
+    # value the browser sent). Without a proxy (development), it's the direct peer.
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return forwarded or (request.client.host if request.client else "unknown")
+
+
+@app.get("/api/auth/session")
+def auth_session(request: Request):
+    user = auth.session_user(request.cookies.get(auth.COOKIE)) if auth.enabled() else None
+    return {"enabled": auth.enabled(), "authenticated": not auth.enabled() or user is not None, "user": user}
+
+
+@app.post("/api/auth/login")
+def auth_login(body: LoginRequest, request: Request, response: Response):
+    if not auth.enabled():
+        return {"user": None}
+    client = _client(request)
+    wait = auth.blocked_for(client)
+    if wait:
+        minutes = max(1, round(wait / 60))
+        raise HTTPException(status_code=429, detail=f"Too many wrong passwords. Try again in {minutes} minute"
+                                                    f"{'' if minutes == 1 else 's'}.")
+    if not auth.check_password(body.username, body.password):
+        auth.record_failure(client)
+        raise HTTPException(status_code=401, detail="Wrong username or password.")
+    auth.clear_failures(client)
+    value, max_age = auth.make_session(auth.username())
+    https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    response.set_cookie(auth.COOKIE, value, max_age=max_age, httponly=True, samesite="strict", secure=https, path="/")
+    return {"user": auth.username()}
+
+
+@app.post("/api/auth/logout", status_code=204)
+def auth_logout(response: Response):
+    response.delete_cookie(auth.COOKIE, path="/", httponly=True, samesite="strict")
 
 
 @app.get("/health")
@@ -909,6 +966,13 @@ def update_scm_settings(body: ScmSettingsUpdateRequest, session: Session = Depen
     session.add(settings)
     session.commit()
     return {"include_in_score": settings.include_in_score}
+
+
+# ── How current the bundled Palo Alto content is ─────────────────────────
+
+@app.get("/api/content")
+def get_content_info():
+    return content_info.report()
 
 
 # ── Risk scoring formula ─────────────────────────────────────────────────

@@ -122,7 +122,7 @@ docker compose exec backend python -m app.tsf_probe /tmp/client-ts.tgz
 docker compose exec backend rm /tmp/client-ts.tgz
 ```
 
-**Docker (Postgres-backed, HTTPS + Basic Auth via Caddy, all four services):**
+**Docker (Postgres-backed, HTTPS via Caddy, the dashboard's own sign-in page, all four services):**
 
 ```bash
 cp .env.example .env   # first time only — edit with real values, see DEPLOYMENT.md
@@ -131,7 +131,7 @@ docker compose up --build
 
 App on `https://localhost/` (self-signed cert for local testing — browsers will warn, that's expected). Only Caddy is exposed to the host; Postgres, the backend, and the frontend's nginx are only reachable from other containers.
 
-Deploying this to another machine (including via Arcane), or need to generate real Basic Auth credentials? See [DEPLOYMENT.md](DEPLOYMENT.md).
+Deploying this to another machine, or setting the sign-in password? See [docs/INSTALL.md](../docs/INSTALL.md) ("Change the password" for the `BASIC_AUTH_HASH`). A development server started without `BASIC_AUTH_HASH` has no sign-in.
 
 ## Current scope (Phase 1: file upload)
 

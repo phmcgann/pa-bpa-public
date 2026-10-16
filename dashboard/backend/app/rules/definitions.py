@@ -144,14 +144,18 @@ PAN_BPA_PROFILES = (
 RULES: list[RuleDef] = [
     RuleDef(
         id="eol_pan_os_version",
-        title="PAN-OS version is EOL or nearing EOL",
+        title="PAN-OS release is past or near end-of-life",
         category="Software",
-        default_severity="WARNING",
-        source_type="custom",
-        source_ref=None,
-        description="Flags PAN-OS major versions below a configurable cutoff. "
-                    "Only available in live mode (requires 'show system info').",
-        thresholds={"eol_major_version": 10},
+        default_severity="CRITICAL",
+        source_type="pan_docs",
+        source_ref="Palo Alto Networks End-of-Life Summary — PAN-OS & Panorama "
+                   "(paloaltonetworks.com/services/support/end-of-life-announcements/end-of-life-summary)",
+        description="Compares the PAN-OS release with Palo Alto's published end-of-life dates. Critical once "
+                    "a release is past end-of-life (standard and any extended support over); Warning while it's "
+                    "in extended support, or within the set number of days of an end-of-life with no extended "
+                    "support to follow; Low when only standard support is about to end. The version comes from "
+                    "a tech support file or live connection, else from the version stamp in a config export.",
+        thresholds={"warn_days_before_end": 180},
     ),
     RuleDef(
         id="license_expired",

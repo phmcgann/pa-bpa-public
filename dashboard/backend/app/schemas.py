@@ -60,3 +60,8 @@ class AssessmentUpdateRequest(BaseModel):
     """Only the fields sent are changed; send null or "" to clear one."""
     client_name: Optional[str] = None
     serial: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(max_length=200)
+    password: str = Field(max_length=1000)

@@ -760,6 +760,9 @@ export function DashboardPage() {
                         </>
                       ) : (
                         <>
+                          {data.config_version?.version && (
+                            <KV label="PAN-OS" value={`${data.config_version.version} (from config)`} />
+                          )}
                           {data.system_info.serial && <KV label="Serial" value={data.system_info.serial} />}
                           <Unavailable reason={data.system_info.reason} />
                         </>

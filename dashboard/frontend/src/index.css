@@ -179,7 +179,7 @@
   tbody tr:hover td { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
 
   /* Native controls that aren't wrapped in a component still look like the rest. */
-  select, input[type="number"], input[type="text"], input[type="search"], input:not([type]) {
+  select, input[type="number"], input[type="text"], input[type="search"], input[type="password"], input:not([type]) {
     font: inherit;
     font-size: 13px;
     color: var(--text-primary);

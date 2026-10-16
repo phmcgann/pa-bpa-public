@@ -38,6 +38,10 @@ services:
       SCM_TSG_ID: ${SCM_TSG_ID:-}
       # Palo Alto Networks security advisories for PAN-OS ("off" where there's no internet).
       PAN_ADVISORY_FEED: ${PAN_ADVISORY_FEED:-on}
+      # The dashboard's sign-in (the installer writes these to .env). Required: without a password
+      # hash the backend would have no sign-in at all.
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-admin}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?BASIC_AUTH_HASH must be set in .env}
     depends_on:
       db:
         condition: service_healthy
@@ -56,8 +60,6 @@ services:
       # ":80" serves plain HTTP to whoever reaches the port (safe, because the ports below
       # are bound to this computer only). On a server, set your domain name here.
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
-      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
-      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
     ports:
       - "${HTTP_BIND:-127.0.0.1:8080}:80"
       - "${HTTPS_BIND:-127.0.0.1:8443}:443"

@@ -1,7 +1,5 @@
 {$SITE_ADDRESS:localhost} {
-	basic_auth {
-		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-	}
-
+	# No basic_auth here: signing in is the dashboard's own page. The backend checks the
+	# BASIC_AUTH_USER / BASIC_AUTH_HASH from .env and refuses API requests without a session.
 	reverse_proxy frontend:80
 }

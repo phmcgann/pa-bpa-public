@@ -92,7 +92,6 @@ def test_logging_and_hardening_gaps(keys):
 
 
 def test_offline_only_checks_are_silent(keys):
-    assert not any(k.startswith("eol_pan_os_version:") for k in keys)
     assert not any(k.startswith("license_") for k in keys)
     assert not any(k.startswith("ha_not_synced:") for k in keys)
 

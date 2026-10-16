@@ -189,11 +189,13 @@ Continue with **[First login](#first-login)**.
 
 1. Your browser opens **<http://localhost:8080>** by itself. If it didn't, open your browser and type `localhost:8080` into the address bar.
    (If the installer said it used a different port, such as 8081, use that number instead.)
-2. The browser asks you to sign in:
+2. The dashboard's sign-in page opens. Sign in with:
    - **Username:** `admin`
    - **Password:** the one the installer printed (also in `pa-bpa-login.txt`).
 
-   ![The browser's Sign in box for the dashboard (here on port 8081, because 8080 was taken)](images/install/login-prompt.png)
+   ![The dashboard's sign-in page](images/install/sign-in-page.png)
+
+   You stay signed in for 12 hours, or until you click the **sign-out** button at the bottom of the sidebar (next to the light and dark theme switch).
 
 3. You'll see the empty **Assessments** page:
 
@@ -404,8 +406,10 @@ Something else on your computer is already using port 8080, so the installer pic
 ### The browser says "This site can't be reached"
 Docker Desktop isn't running, or the dashboard is stopped. Open Docker Desktop and wait for **Engine running**; the dashboard starts with it. If it still doesn't load, go into the install folder and run `docker compose ps`: all four containers should say **running** (or **healthy**). If not, run `docker compose up -d`.
 
-### The browser keeps asking for the password
-The username or password is wrong. The username is `admin` and the password is in [`pa-bpa-login.txt`](#find-your-password) (unless you [changed it](#change-the-password)). Passwords are case-sensitive. To stop the browser offering an old saved password, remove it from the browser's saved passwords for `localhost`.
+### The sign-in page says "Wrong username or password"
+The username is `admin` and the password is in [`pa-bpa-login.txt`](#find-your-password) (unless you [changed it](#change-the-password)). Passwords are case-sensitive. To stop the browser offering an old saved password, remove it from the browser's saved passwords for `localhost`.
+
+After five wrong passwords in a row, sign-in pauses for up to 15 minutes; the page says how long.
 
 ### The installer says "the database from an earlier install" is still there
 The install folder (or just its `.env` file) was deleted, but the old assessments are still stored in Docker. The installer stops so it doesn't lose them. Either put your old `.env` back into the install folder and run the install command again, or, to erase the old assessments and start over, run this and then the install command again:

@@ -15,6 +15,10 @@ const STATUS: Record<ScmCoverageStatus, { label: string; tone: "critical" | "war
   covered: { label: "Covered", tone: "good", help: `A ${brand.ruleSetShort} finding covers it, so SCM isn't scored twice.` },
 };
 
+function longDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: "long", timeZone: "UTC" });
+}
+
 /**
  * Which failed SCM checks the core rules also caught, from the stored SCM run. The gaps are what would
  * go unreported if SCM couldn't be run; the copied text (check numbers, titles and field names only)
@@ -43,6 +47,10 @@ export function ScmCoverage({ coverage }: { coverage: Coverage }) {
           {notApplicable.length > 0 && (
             <> {notApplicable.length} more fail only on built-in profiles nothing uses, HA settings on a firewall without HA, or disabled PBF rules, which aren't gaps.</>
           )}
+          {!!coverage.new_checks && (
+            <> {coverage.new_checks} {coverage.new_checks === 1 ? "is a check" : "are checks"} Palo Alto added after this
+              release's list of SCM checks was taken{coverage.catalog_as_of ? <> ({longDate(coverage.catalog_as_of)})</> : null}.</>
+          )}
         </p>
         {listed.length > 0 && (
           <Button
@@ -69,7 +77,15 @@ export function ScmCoverage({ coverage }: { coverage: Coverage }) {
               <tr key={c.check_id}>
                 <td>
                   <div className="text-[12px] text-fg-muted tab-num">SCM {c.check_id} · {c.category}</div>
-                  <div className="text-[13px] leading-5">{c.title}</div>
+                  <div className="text-[13px] leading-5">
+                    {c.title}
+                    {c.new_check && (
+                      <Badge tone="accent" className="ml-1.5 align-[1px]"
+                             title="Not in this release's list of SCM checks: Palo Alto added it since. No rule covers it yet.">
+                        New from Palo Alto
+                      </Badge>
+                    )}
+                  </div>
                   {!!c.not_applicable_objects && c.status !== "not_applicable" && (
                     <div className="text-[11px] text-fg-muted mt-0.5">
                       Plus {c.not_applicable_objects} unused built-in object{c.not_applicable_objects === 1 ? "" : "s"}, not counted

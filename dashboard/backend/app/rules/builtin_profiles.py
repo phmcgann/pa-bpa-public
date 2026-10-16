@@ -18,6 +18,8 @@ from pathlib import Path
 from ..parser import PROFILE_TYPE_TAGS, parse_decryption_profile_entry, parse_profile_settings
 
 _XML = Path(__file__).with_name("builtin_profiles.xml")
+# When builtin_profiles.xml was taken from Palo Alto SCM's BPA (shown in Settings).
+AS_OF = "2026-09-25"
 
 # The words each profile type's findings use for it ("Antivirus profile 'default'").
 _LABELS = {

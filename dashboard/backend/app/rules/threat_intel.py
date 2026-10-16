@@ -14,6 +14,9 @@ list counts as that list.
 """
 from __future__ import annotations
 
+# When the lists below were last checked against Palo Alto's documentation (shown in Settings).
+AS_OF = "2026-09-24"
+
 BLOCK_ACTIONS = {"deny", "drop", "reset-client", "reset-server", "reset-both"}
 
 # Built-in IP lists: config name -> label shown in the PAN-OS UI.

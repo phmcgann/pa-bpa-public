@@ -60,18 +60,20 @@ def run_rules(data: dict, rule_settings: dict[str, dict]) -> list[dict]:
             continue
 
         thresholds = {**rule.thresholds, **(setting.get("threshold_overrides") or {})}
-        severity = setting.get("severity_override") or rule.default_severity
         check_fn = CHECKS[rule.id]
         is_per_rule_check = rule.id.startswith("security_rule_")
         for item in check_fn(data, thresholds):
+            # A check may grade its own findings (item "severity"); a severity set in Settings still wins.
+            item_default = item.get("severity") or rule.default_severity
+            item_severity = setting.get("severity_override") or item_default
             findings.append({
                 "rule_id": rule.id,
                 "finding_key": f"{rule.id}:{item['key']}",
                 "title": rule.title,
                 "category": rule.category,
-                "severity": severity,
-                "default_severity": rule.default_severity,
-                "severity_overridden": severity != rule.default_severity,
+                "severity": item_severity,
+                "default_severity": item_default,
+                "severity_overridden": item_severity != item_default,
                 "message": item["message"],
                 "recommendation": item["recommendation"],
                 "program": "core",

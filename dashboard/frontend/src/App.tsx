@@ -1,12 +1,13 @@
-import { LayoutList, Monitor, Moon, Settings, Sun, Upload } from "lucide-react";
-import { useEffect, useState, type ComponentType } from "react";
+import { LayoutList, LogOut, Monitor, Moon, Settings, Sun, Upload } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
-import { api } from "./api";
+import { api, setSignedOutHandler } from "./api";
 import { brand, Logo } from "@brand";
 import { cn } from "./lib/cn";
 import { ComparePage } from "./pages/ComparePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UploadPage } from "./pages/UploadPage";
 import { useTheme, type ThemePref } from "./theme";
@@ -51,6 +52,68 @@ function ThemeSwitch() {
         </button>
       ))}
     </div>
+  );
+}
+
+/** Who's signed in, and how to sign out; null when the server has no sign-in (development). */
+const SessionContext = createContext<{ user: string | null; signOut: () => void } | null>(null);
+
+function SignOutButton({ compact }: { compact?: boolean }) {
+  const session = useContext(SessionContext);
+  if (!session) return null;
+  const label = session.user ? `Sign out ${session.user}` : "Sign out";
+  return (
+    <button
+      type="button"
+      onClick={session.signOut}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "inline-flex items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent text-fg-muted hover:text-fg hover:bg-surface-3",
+        compact ? "h-8 w-8" : "h-7 px-2 text-[12px]",
+      )}
+    >
+      <LogOut size={14} />
+      {!compact && "Sign out"}
+    </button>
+  );
+}
+
+/**
+ * Shows the sign-in page until there's a session, and again whenever the API says it has ended.
+ * A server without a password (development) has no sign-in, and the app shows straight away.
+ */
+function SessionGate({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<"checking" | "open" | "signed-in" | "signed-out" | "expired">("checking");
+  const [user, setUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSignedOutHandler(() => setState((s) => (s === "signed-in" ? "expired" : s)));
+    api.authSession().then(
+      (s) => {
+        setUser(s.user);
+        setState(!s.enabled ? "open" : s.authenticated ? "signed-in" : "signed-out");
+      },
+      () => setState("signed-out"),
+    );
+    return () => setSignedOutHandler(null);
+  }, []);
+
+  const signOut = useCallback(() => {
+    api.signOut().finally(() => {
+      setUser(null);
+      setState("signed-out");
+    });
+  }, []);
+
+  if (state === "checking") return <div className="min-h-screen bg-bg" />;
+  if (state === "signed-out" || state === "expired") {
+    return <LoginPage expired={state === "expired"} onSignedIn={(u) => { setUser(u); setState("signed-in"); }} />;
+  }
+  return (
+    <SessionContext.Provider value={state === "signed-in" ? { user, signOut } : null}>
+      {children}
+    </SessionContext.Provider>
   );
 }
 
@@ -109,7 +172,10 @@ function Sidebar() {
         {brand.website
           ? <a href={brand.website.href} className="text-[12px] text-fg-muted hover:text-fg">{brand.website.label}</a>
           : <span />}
-        <ThemeSwitch />
+        <div className="flex items-center gap-1">
+          <SignOutButton compact />
+          <ThemeSwitch />
+        </div>
       </div>
       </div>
     </aside>
@@ -139,6 +205,7 @@ function MobileBar() {
               <Icon size={16} />
             </NavLink>
           ))}
+          <SignOutButton compact />
         </nav>
       </div>
     </header>
@@ -147,6 +214,7 @@ function MobileBar() {
 
 function App() {
   return (
+    <SessionGate>
     <div className="app-shell min-h-screen lg:flex bg-bg">
       <Sidebar />
       <div className="flex-1 min-w-0">
@@ -162,6 +230,7 @@ function App() {
         </main>
       </div>
     </div>
+    </SessionGate>
   );
 }
 

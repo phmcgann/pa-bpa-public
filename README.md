@@ -96,7 +96,7 @@ The **core rules** are the dashboard's own rule set, labelled on screen and in r
 | High Availability | 11 | Link/path monitoring, HA2 keepalive, session sync |
 | VPN | 11 | IKEv2, crypto strength, tunnel monitoring, anti-replay |
 | Decryption | 11 | Outbound decryption, TLS versions, certificate checks, weak ciphers |
-| Software | 8 | End-of-life PAN-OS, published advisories affecting the running version |
+| Software | 8 | PAN-OS releases past or near end-of-life (Palo Alto's published dates), published advisories affecting the running version |
 | DoS Protection | 7 | DoS policy and profiles, flood thresholds |
 | Network Security | 6 | Zone protection: reconnaissance, flood and packet-based protection |
 | Certificates | 6 | Expiry, weak keys, weak signatures, self-signed on user-facing services |
@@ -110,6 +110,15 @@ Rules can be turned off, recategorized and have thresholds adjusted in **Setting
 - **PAN-OS predefined profiles** (`default`, `strict`, `basic file blocking`, …) are graded when a rule or profile group uses them, using a reference copy of their settings; findings on them say to clone the profile, since built-ins can't be edited.
 - **Every** decryption and zone protection profile is graded, used or not, as Palo Alto SCM does.
 - **Licensed features** (WildFire inline ML, Advanced URL Filtering, Advanced Threat Prevention inline cloud analysis) are checked unless the license is confirmed absent; when the license is unknown, the finding says it applies if the license is present.
+
+### Keeping up with Palo Alto
+
+What the checks know about Palo Alto changes over time. **Settings → Palo Alto content** lists each source with its date:
+
+- **Security advisories** are downloaded live from Palo Alto every 12 hours.
+- **PAN-OS end-of-life dates**, the **SCM check list**, the **predefined profiles** and the **built-in IP lists** are bundled with each release and marked *Review due* once they're more than six months old.
+- The end-of-life check is **Critical** once a release is past end-of-life (standard and any extended support over), **Warning** while it's only in extended support or about to reach end-of-life, and **Low** when only standard support is about to end. The version comes from a tech support file, or else from the version stamp in a config export.
+- After an SCM run, checks Palo Alto added since the bundled SCM list was taken are labelled **New from Palo Alto** in the coverage view and in the copied gap list.
 
 ## Palo Alto SCM Integration
 
@@ -169,6 +178,7 @@ Analysts can add a note to a **finding**, a **remediation work item**, a **secur
 | GET · PATCH | `/api/scoring` | Severity weights and risk thresholds |
 | GET · PATCH | `/api/scm/catalog` · `/api/scm/settings` | SCM check catalogue and scoring setting |
 | GET | `/api/clients` | Client names with assessment counts |
+| GET | `/api/content` | How current the bundled Palo Alto content is |
 
 ## Running & Deploying
 
@@ -189,7 +199,7 @@ The database migrates itself on startup (new tables and columns are added automa
 - **Secrets** (SCM credentials) live only in the server's environment or `.env`; the dashboard never asks for them.
 - **Sending a configuration to Palo Alto SCM** is always an explicit click, per assessment.
 - **Shared exports** (the SCM gap list, the TSF verification script's report) replace object names with placeholders or leave values out.
-- Access is controlled at the reverse proxy (HTTP Basic Auth), not in the app.
+- Signing in is the dashboard's own page: one `admin` account whose bcrypt password hash is in `.env`. A session is a signed, HttpOnly, SameSite=Strict cookie that lasts 12 hours (`SESSION_HOURS`), and every API route requires one. Five wrong passwords in a row pause sign-in for up to 15 minutes, and changing the password signs everyone out.
 
 ## Glossary
 

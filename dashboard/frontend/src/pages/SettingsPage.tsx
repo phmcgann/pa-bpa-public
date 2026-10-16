@@ -3,6 +3,7 @@ import { ScmCheckRefs } from "../components/ScmCheckRefs";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api";
 import { BASIS_LABEL } from "../ruleBasis";
+import { PaloAltoContent } from "../components/PaloAltoContent";
 import { ScmChecksSettings } from "../components/ScmChecksSettings";
 import { Badge, SeverityBadge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
@@ -50,6 +51,7 @@ const NAV = [
   { id: "scoring", label: "Risk scoring" },
   { id: "core", label: `${brand.ruleSet} rules` },
   { id: "scm", label: "Palo Alto SCM checks" },
+  { id: "content", label: "Palo Alto content" },
 ];
 
 /** Which assessment tab each display toggle lives on, so the toggles read in the order you see them. */
@@ -473,6 +475,14 @@ export function SettingsPage() {
               />
             </Section>
           )}
+
+          <Section
+            id="content"
+            title="Palo Alto content"
+            description="What the checks know about Palo Alto Networks' products and recommendations, and how current it is."
+          >
+            <PaloAltoContent />
+          </Section>
         </div>
       </div>
     </div>

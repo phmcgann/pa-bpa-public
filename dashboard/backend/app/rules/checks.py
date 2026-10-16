@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from .. import advisories
 from ..certificates import USER_FACING
 from ..object_usage import KINDS as OBJECT_KINDS, find_duplicates
-from . import mgmt_exposure, nat, rulebase, threat_intel
+from . import mgmt_exposure, nat, pan_os_lifecycle, rulebase, threat_intel
 
 # Known infrastructure apps that don't need security profiles.
 INFRA_APPS = {"ike", "ipsec", "ping", "bgp", "ospf", "rip", "ms-rdp",
@@ -40,20 +40,18 @@ def is_infra_rule(name: str, apps: list[str]) -> bool:
 # ── Software / Licensing (live-mode only) ──────────────────────────────────
 
 def check_eol_pan_os_version(data: dict, thresholds: dict) -> list[dict]:
-    info = data.get("system_info", {})
-    if not info.get("available"):
+    """Against Palo Alto's published end-of-life dates (pan_os_lifecycle). The version comes from
+    the firewall itself when known (tech support file, live connection), else from the version
+    stamp a config export carries."""
+    info = data.get("system_info") or {}
+    if info.get("available") and pan_os_lifecycle.feature_release(info.get("sw_version")):
+        version, source = info["sw_version"], "running on the firewall"
+    elif pan_os_lifecycle.feature_release((data.get("config_version") or {}).get("version")):
+        version, source = data["config_version"]["version"], "per the config file's version stamp"
+    else:
         return []
-    version = info.get("sw_version", "")
-    if not version or not version[0].isdigit():
-        return []
-    major = int(version.split(".")[0])
-    if major < thresholds["eol_major_version"]:
-        return [{
-            "key": "global",
-            "message": f"PAN-OS version {version} is End-of-Life or nearing EOL",
-            "recommendation": "Upgrade to the latest supported PAN-OS release",
-        }]
-    return []
+    item = pan_os_lifecycle.finding(version, source, thresholds.get("warn_days_before_end", 180))
+    return [item] if item else []
 
 
 def check_license_expired(data: dict, thresholds: dict) -> list[dict]:
