@@ -652,9 +652,10 @@ def parse_decryption_profile_entry(entry: ET.Element) -> dict:
         "min_version_explicit": entry.find("ssl-protocol-settings/min-version") is not None,
         "forward_proxy_block_expired": _yes_no(entry, "ssl-forward-proxy/block-expired-certificate"),
         "forward_proxy_block_untrusted": _yes_no(entry, "ssl-forward-proxy/block-untrusted-issuer"),
-        # Server-certificate checks applied to traffic a no-decrypt rule leaves encrypted.
-        "no_proxy_block_expired": _yes_no(entry, "ssl-no-proxy/block-expired-certificate"),
-        "no_proxy_block_untrusted": _yes_no(entry, "ssl-no-proxy/block-untrusted-issuer"),
+        # Server-certificate checks applied to traffic a no-decrypt rule leaves encrypted. Off unless
+        # set (PAN-OS default; Palo Alto SCM checks #58 and #373 fail a profile that doesn't set them).
+        "no_proxy_block_expired": xml_text(entry, "ssl-no-proxy/block-expired-certificate", "no") == "yes",
+        "no_proxy_block_untrusted": xml_text(entry, "ssl-no-proxy/block-untrusted-issuer", "no") == "yes",
         # SSL Inbound Inspection and SSH Proxy unsupported-mode/failure checks (pan-os-codegen
         # decryption-profile spec; Palo Alto SCM checks #56 and #59), all off unless set.
         "forward_checks": {opt: xml_text(entry, f"ssl-forward-proxy/{opt}", "no") == "yes" for opt in FORWARD_CHECKS},
@@ -1251,6 +1252,10 @@ def parse_session_settings(layers: list[ET.Element]) -> dict:
             "timeouts": timeouts}
 
 
+PASSWORD_CLASSES = (("uppercase letter", "minimum-uppercase-letters"), ("lowercase letter", "minimum-lowercase-letters"),
+                    ("number", "minimum-numeric-letters"), ("special character", "minimum-special-characters"))
+
+
 def parse_device_settings(layers: list[ET.Element]) -> dict:
     """Device > Setup settings behind Palo Alto SCM checks #89, #97, #102, #104 and #197, with
     element names from SCM's failed-field names and device-settings API spec. `layers` are
@@ -1265,6 +1270,9 @@ def parse_device_settings(layers: list[ET.Element]) -> dict:
         "telemetry_health": "system/device-telemetry/device-health-performance",
         "telemetry_usage": "system/device-telemetry/product-usage",
         "telemetry_threat": "system/device-telemetry/threat-prevention",
+        # Device > Setup > Content-ID > X-Forwarded-For Headers (Palo Alto SCM checks #107 and #108).
+        "xff_userid": "setting/ctd/x-forwarded-for",
+        "xff_strip": "setting/ctd/strip-x-fwd-for",
     }
     values: dict[str, Optional[str]] = dict.fromkeys(paths)
     cert_type = None
@@ -1292,6 +1300,8 @@ def parse_device_settings(layers: list[ET.Element]) -> dict:
         "wildfire": {"size_limits": size_limits, "report_grayware": grayware == "yes"},
         # Off unless turned on.
         "cert_expiration_check": values["cert_expiration_check"] == "yes",
+        "xff_userid": values["xff_userid"] == "yes",
+        "xff_strip": values["xff_strip"] == "yes",
         "log_high_dp_load": values["log_high_dp_load"] == "yes",
         # On unless explicitly turned off.
         "server_verification": values["server_verification"] != "no",
@@ -1597,7 +1607,7 @@ def parse_mgmt_plane(layers: list[ET.Element]) -> dict:
     out: dict = {
         "idle_timeout_min": None, "failed_attempts": None, "lockout_minutes": None,
         "api_key_lifetime_min": None,
-        "password_complexity": {"enabled": False, "minimum_length": None},
+        "password_complexity": {"enabled": False, "minimum_length": None, "minimum_classes": {}},
         "snmp_polling": None, "mgmt_tls_profile": None,
         "update_schedule": {},
         "log_forwarding": {"system": [], "config": []},
@@ -1640,6 +1650,9 @@ def parse_mgmt_plane(layers: list[ET.Element]) -> dict:
             out["password_complexity"] = {
                 "enabled": xml_text(pc, "enabled", "no") == "yes",
                 "minimum_length": _int(pc, "minimum-length"),
+                # Characters of each kind a password needs; 0 (the default) when not set. Palo Alto SCM
+                # check #103 fails a class left at 0 (its failed field: minimum_lowercase_letters=0).
+                "minimum_classes": {label: _int(pc, tag) or 0 for label, tag in PASSWORD_CLASSES},
             }
         shared = layer.find("shared")
         if shared is None:

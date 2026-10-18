@@ -346,6 +346,17 @@ def _file_blocking(ctx, path, p):
                     "the same types."}
 
 
+def _file_blocking_recommended(ctx, path, p):
+    from .checks import FILE_BLOCKING_RECOMMENDED
+    return {"commands": [f'set {path} rules "block-common-malware-types" application any file-type '
+                         f'[ {" ".join(FILE_BLOCKING_RECOMMENDED)} ] direction both action block',
+                         f'set {path} rules "alert-all-file-types" application any file-type any direction both '
+                         'action alert'],
+            "note": "Adds the two rules Palo Alto SCM check #45 asks for. Rules the profile already has keep their "
+                    "place above these, so move the block rule up if an earlier rule lets these file types through, "
+                    "and keep the alert rule last. Remove a type from the block rule if the business needs it."}
+
+
 def _wildfire_filetype(ctx, path, p, file_type):
     rules = p["settings"].get("rules") or []
     if rules:
@@ -405,6 +416,7 @@ PROFILE_BUILDERS = {
     "url_inline_categorization_off":
         _profile_cmds("url_filtering", lambda ctx, path, p: [f"set {path} cloud-inline-cat yes"]),
     "file_blocking_nothing_blocked": _profile_cmds("file_blocking", _file_blocking),
+    "file_blocking_missing_recommended": _profile_cmds("file_blocking", _file_blocking_recommended),
     "wildfire_missing_recommended_filetype": _profile_cmds("wildfire_analysis", _wildfire_filetype, per_item=True),
     "wildfire_inline_cloud_analysis_disabled":
         _profile_cmds("wildfire_analysis", lambda ctx, path, p: [f"set {path} cloud-inline-analysis yes"]),
@@ -440,7 +452,13 @@ BUILDERS = {
     "admin_idle_timeout_long": _device("set deviceconfig setting management idle-timeout 10"),
     "admin_lockout_weak": _lockout,
     "password_complexity_weak": _device("set mgt-config password-complexity enabled yes",
-                                        "set mgt-config password-complexity minimum-length 12"),
+                                        "set mgt-config password-complexity minimum-length 12",
+                                        "set mgt-config password-complexity minimum-uppercase-letters 1",
+                                        "set mgt-config password-complexity minimum-lowercase-letters 1",
+                                        "set mgt-config password-complexity minimum-numeric-letters 1",
+                                        "set mgt-config password-complexity minimum-special-characters 1"),
+    "xff_not_stripped": _device("set deviceconfig setting ctd strip-x-fwd-for yes"),
+    "xff_userid_off": _device("set deviceconfig setting ctd x-forwarded-for yes"),
     "api_key_no_lifetime": _device(
         "set deviceconfig setting management api key lifetime {{api_key_lifetime}}",
         choices=[_choice("api_key_lifetime", "API key lifetime (minutes)", [], "<MINUTES>", True)],

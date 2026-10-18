@@ -152,20 +152,21 @@ def test_decryption_profile_cert_checks_disabled(keys):
 def test_parses_no_decryption_cert_settings(data):
     profiles = {p["name"]: p for p in data["decryption"]["profiles"]}
     assert profiles["nd-profile"]["no_proxy_block_expired"] is False
-    assert profiles["nd-profile"]["no_proxy_block_untrusted"] is None
-    assert profiles["weak-decrypt"]["no_proxy_block_expired"] is None
+    # Not set means off, the PAN-OS default (Palo Alto SCM fails it too).
+    assert profiles["nd-profile"]["no_proxy_block_untrusted"] is False
+    assert profiles["weak-decrypt"]["no_proxy_block_expired"] is False
 
 
 def test_decryption_no_decrypt_cert_checks(keys):
     # Profile on an enabled no-decrypt rule explicitly doesn't block expired certs
     assert "decryption_no_decrypt_cert_checks:nd-profile:no_proxy_block_expired" in keys
-    # Absent setting isn't assumed either way
-    assert "decryption_no_decrypt_cert_checks:nd-profile:no_proxy_block_untrusted" not in keys
+    # A setting the profile doesn't mention is off (the PAN-OS default)
+    assert "decryption_no_decrypt_cert_checks:nd-profile:no_proxy_block_untrusted" in keys
     # No-decrypt rule with no profile at all
     assert "decryption_no_decrypt_cert_checks:rule:exclude-health" in keys
     assert "decryption_no_decrypt_cert_checks:rule:old-exclusion" not in keys  # disabled
-    # Decrypt rules' profiles aren't judged on their no-decryption settings
-    assert not any(k.startswith("decryption_no_decrypt_cert_checks:weak-decrypt") for k in keys)
+    # Every profile is graded, as Palo Alto SCM does, saying when no no-decrypt rule uses it
+    assert "decryption_no_decrypt_cert_checks:weak-decrypt:no_proxy_block_expired" in keys
 
 
 def test_zone_protection_no_recon(keys):
@@ -202,8 +203,12 @@ def test_zone_protection_flood_disabled(data, keys):
 
 def test_mgmt_profile_cleartext(data, keys):
     assert "mgmt_profile_cleartext:insecure-mgmt" in keys
-    assert "mgmt_profile_cleartext:unattached-insecure" not in keys
+    # Unattached profiles are graded too (as Palo Alto SCM check #228 does), and say so
+    assert "mgmt_profile_cleartext:unattached-insecure" in keys
     assert "mgmt_profile_cleartext:secure-mgmt" not in keys
+    unattached = next(f["message"] for f in run_rules(data, {})
+                      if f["finding_key"] == "mgmt_profile_cleartext:unattached-insecure")
+    assert "not attached to any interface yet" in unattached
     msg = next(f["message"] for f in run_rules(data, {})
                if f["finding_key"] == "mgmt_profile_cleartext:insecure-mgmt")
     assert "Telnet and HTTP" in msg

@@ -1,6 +1,7 @@
 {
- "_about": "Palo Alto Networks Strata Cloud Manager (SCM) Best Practice Assessment checks, as returned by the Posture Management API (POST /posture/checks/v1/reports/config-file-upload) for synthetic NGFW configs built to populate as many object types as possible. Names, severities and descriptions are Palo Alto's own wording. Only checks that ran against the synthetic configs are listed; refresh with scripts/fetch_scm_checks.py when the all-checks endpoint is reachable.",
+ "_about": "Palo Alto Networks Strata Cloud Manager (SCM) Best Practice Assessment checks, as returned by the Posture Management API (POST /posture/checks/v1/reports/config-file-upload) for synthetic NGFW configs built to populate as many object types as possible. Names, severities and descriptions are Palo Alto's own wording. Only checks that ran against the synthetic configs are listed; refresh with scripts/fetch_scm_checks.py when the all-checks endpoint is reachable. Checks first seen in later SCM runs are added with the name and severity those runs reported; 'updated' is the date of the latest addition.",
  "retrieved": "2026-09-23",
+ "updated": "2026-10-16",
  "platform": "ngfw",
  "checks": [
   {
@@ -554,6 +555,22 @@
    "section": "device",
    "object_type": "device_setup_services",
    "description": "Configuring primary and secondary NTP servers keeps the firewall's clock synchronized with the NTP server clock. When all network firewalls and Panorama use NTP, all have synchronized clocks, so scheduled jobs run as expected and timestamps can help identify the root cause of various issues that involve multiple devices."
+  },
+  {
+   "id": 107,
+   "name": "Using  XFF headers in User-ID is disabled.",
+   "severity": "Informational",
+   "section": "device",
+   "object_type": "device_setup_content_id",
+   "description": "With an upstream proxy, the X-Forwarded-For header is how User-ID sees the original client address. (Added from an SCM run on 2026-10-16; the name and severity are Palo Alto's.)"
+  },
+  {
+   "id": 108,
+   "name": "The option to strip the X-Forwarded-For Header is disabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_content_id",
+   "description": "Stripping the X-Forwarded-For header keeps internal client addresses it may carry from being passed on to destination servers. (Added from an SCM run on 2026-10-16; the name and severity are Palo Alto's.)"
   },
   {
    "id": 109,
@@ -1666,6 +1683,14 @@
    "section": "policies",
    "object_type": "security_rule",
    "description": "Block traffic to and from known C2 infrastructure and IPs hardcoded in malware. The built-in 'Palo Alto Networks - Adv. IP Defense: C2 infrastructure' and 'Hardcoded in malware' EDLs are updated dynamically based on the latest threat intelligence."
+  },
+  {
+   "id": 414,
+   "name": "The Antivirus Profile does not hold files until the firewall receives the WildFire real-time signature verdict.",
+   "severity": "Critical",
+   "section": "objects",
+   "object_type": "antivirus_profile",
+   "description": "Without hold mode, a file can be delivered before the WildFire real-time signature lookup returns, so a newly identified threat isn't stopped. (Added from an SCM run on 2026-10-16; the name and severity are Palo Alto's.)"
   }
  ]
 }

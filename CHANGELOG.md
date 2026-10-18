@@ -3,6 +3,16 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.5] - 2026-10-18
+
+### Checks
+- Decryption profiles that don't set the No Decryption certificate checks (block sessions with expired certificates, and with untrusted issuers) are now flagged: PAN-OS leaves both off unless they're set. Before, a profile that didn't mention them wasn't judged.
+- Minimum password complexity also needs at least one uppercase letter, lowercase letter, number and special character, as Palo Alto SCM checks, not only a minimum length. The Copy CLI commands set all four.
+- Interface management profiles that allow HTTP or Telnet are flagged even when no interface uses them yet, as Palo Alto SCM does.
+- New: File Blocking profiles that block something but not the file types commonly used by malware (7z, bat, chm, class, cpl, dll, hlp, hta, jar, ocx, pif, scr, torrent, vbe, wsf), or that have no rule alerting on all other file types.
+- New: Strip X-Forwarded-For Header turned off. A rule for using the X-Forwarded-For header in User-ID is also available, off by default, since it only matters behind an upstream proxy.
+- Three checks Palo Alto added to its SCM BPA since September (WildFire real-time hold in Antivirus profiles, and the two X-Forwarded-For settings) are now in the bundled SCM check list and matched to core rules. Re-analyze an assessment to apply the parsing changes.
+
 ## [1.0.4] - 2026-10-16
 
 ### Maintenance

@@ -31,7 +31,7 @@ def report(on: date | None = None) -> dict:
                  f"{len(pan_os_lifecycle.RELEASES)} feature releases, up to {newest[0]}.{newest[1]}. "
                  "Newer releases aren't judged until this is updated.",
                  pan_os_lifecycle.SOURCE, on),
-        _bundled("scm_catalog", "Strata Cloud Manager BPA checks", catalog["retrieved"],
+        _bundled("scm_catalog", "Strata Cloud Manager BPA checks", scm_catalog.as_of(),
                  f"{len(catalog['checks'])} checks. Checks Palo Alto added since are labelled "
                  "\"New from Palo Alto\" on an assessment's SCM coverage.",
                  None, on),

@@ -144,7 +144,7 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
     summary = {s: {"checks": sum(1 for c in checks if c["status"] == s),
                    "points": sum(c["points"] for c in checks if c["status"] == s)} for s in STATUS_ORDER}
     return {"checks": checks, "summary": summary, "new_checks": sum(1 for c in checks if c["new_check"]),
-            "catalog_as_of": scm_catalog.load()["retrieved"]}
+            "catalog_as_of": scm_catalog.as_of()}
 
 
 def as_text(coverage: dict) -> str:

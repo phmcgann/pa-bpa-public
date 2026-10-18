@@ -22,7 +22,7 @@ The dashboard runs as four small programs ("containers") managed by **Docker Des
 
 | Container | What it does |
 |---|---|
-| `caddy` | The front door. Asks for the password, then passes you through to the dashboard |
+| `caddy` | The front door. Passes your browser's requests through to the dashboard |
 | `frontend` | The web pages you see in the browser |
 | `backend` | Reads firewall files, runs the checks, stores the results |
 | `db` | The database (PostgreSQL) where assessments are kept |

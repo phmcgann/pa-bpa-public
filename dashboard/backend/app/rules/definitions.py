@@ -565,6 +565,18 @@ RULES: list[RuleDef] = [
                     "the profile exists but nothing is actually blocked.",
     ),
     RuleDef(
+        id="file_blocking_missing_recommended",
+        title="File Blocking profile doesn't block the commonly abused file types",
+        category="Security Profiles",
+        default_severity="LOW",
+        source_type="pan_docs",
+        source_ref=PAN_BPA_PROFILES + " — the predefined 'strict' File Blocking profile blocks the file "
+                   "types commonly used in malware campaigns",
+        description="A File Blocking profile that blocks something, but not all of 7z, bat, chm, class, cpl, dll, "
+                    "hlp, hta, jar, ocx, pif, scr, torrent, vbe and wsf in a rule for any application in both "
+                    "directions, or has no rule alerting on every other file type (Palo Alto SCM check #45).",
+    ),
+    RuleDef(
         id="wildfire_missing_recommended_filetype",
         title="WildFire profile doesn't submit a commonly-recommended file type",
         category="Security Profiles",
@@ -643,8 +655,32 @@ RULES: list[RuleDef] = [
         source_type="pan_docs",
         source_ref=PAN_BPA_ADMIN + ' — "never enable HTTP or Telnet access because those protocols '
                    'transmit in cleartext"',
-        description="Flags an Interface Management profile attached to at least one data-plane interface "
-                    "that enables Telnet or HTTP — admin credentials cross the network unencrypted.",
+        description="Flags an Interface Management profile that enables Telnet or HTTP — admin credentials "
+                    "cross the network unencrypted. Every profile is graded, attached to an interface or not, "
+                    "as Palo Alto SCM check #228 does.",
+    ),
+    RuleDef(
+        id="xff_not_stripped",
+        title="Strip X-Forwarded-For Header is off",
+        category="Device Hardening",
+        default_severity="WARNING",
+        source_type="custom",
+        source_ref=None,
+        description="Device > Setup > Content-ID > Strip X-Forwarded-For Header. Off, the firewall passes on "
+                    "the X-Forwarded-For header a client or proxy added, which can reveal internal addresses to "
+                    "external servers (Palo Alto SCM check #108).",
+    ),
+    RuleDef(
+        id="xff_userid_off",
+        title="User-ID doesn't use the X-Forwarded-For header",
+        category="Access Control",
+        default_severity="INFORMATIONAL",
+        source_type="custom",
+        source_ref=None,
+        description="Device > Setup > Content-ID > Use X-Forwarded-For Header in User-ID. Only matters when a "
+                    "proxy sits between users and the firewall, hiding their addresses (Palo Alto SCM check #107).",
+        enabled_by_default=False,
+        default_off_reason="Off by default: only matters when an upstream proxy hides users' addresses from the firewall",
     ),
     RuleDef(
         id="mgmt_interface_open_to_any_source",
@@ -829,8 +865,9 @@ RULES: list[RuleDef] = [
         default_severity="WARNING",
         source_type="custom",
         source_ref=None,
-        description="Device > Setup > Management > Minimum Password Complexity isn't enabled, or its minimum "
-                    "length is below the threshold (Palo Alto SCM check #103 asks for it to be enabled).",
+        description="Device > Setup > Management > Minimum Password Complexity isn't enabled, its minimum "
+                    "length is below the threshold, or it doesn't require at least one uppercase letter, "
+                    "lowercase letter, number and special character (Palo Alto SCM check #103).",
         thresholds={"min_length": 12},
     ),
     RuleDef(
@@ -1184,7 +1221,8 @@ RULES: list[RuleDef] = [
         description="Without hold mode a file is delivered while the firewall is still asking WildFire's "
                     "real-time signature cloud about it, so a brand-new malware signature arrives too late. "
                     "PAN-OS 11.0.2+ with a WildFire or Advanced WildFire license; hold mode must also be enabled "
-                    "globally (Device > Setup > Content-ID). Follows Palo Alto SCM check #347.",
+                    "globally (Device > Setup > Content-ID). Follows Palo Alto SCM checks #347 (the rulebase) "
+                    "and #414 (each Antivirus profile).",
     ),
     # ── Security profile hygiene (ported from Palo Alto SCM checks) ─────────
     RuleDef(
@@ -2166,6 +2204,9 @@ SCM_MATCHES: dict[str, tuple[int, ...]] = {
     # Detection off entirely also fails SCM #227 (which wants the domain credential filter).
     "url_credential_enforcement_disabled": (207, 345, 227),
     "file_blocking_nothing_blocked": (45,),
+    "file_blocking_missing_recommended": (45,),
+    "xff_not_stripped": (108,),
+    "xff_userid_off": (107,),
     "wildfire_missing_recommended_filetype": (47,),
     "decryption_no_outbound": (350,),
     "decryption_no_best_practice_profile": (350,),
@@ -2210,7 +2251,7 @@ SCM_MATCHES: dict[str, tuple[int, ...]] = {
     "wildfire_size_limit_below_default": (109, 110, 111, 112, 113, 114, 115, 204, 205, 251, 361),
     "wildfire_grayware_not_reported": (117,),
     "wildfire_inline_cloud_analysis_disabled": (363,),
-    "wildfire_realtime_hold_off": (347,),
+    "wildfire_realtime_hold_off": (347, 414),
     "profile_threat_exceptions": (31, 32, 36, 41),
     "av_packet_capture": (35,),
     "url_log_container_page_only": (44,),

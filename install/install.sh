@@ -23,6 +23,10 @@
 set -euo pipefail
 
 REPO="phmcgann/pa-bpa-public"
+# 1 in a build for a private copy of the repo: its images need a GitHub sign-in, and it carries
+# its own stack files (stack_files below), since its release page needs a sign-in too.
+PRIVATE_BUILD=0
+GITHUB_API="${PA_BPA_GITHUB_API:-https://api.github.com}"
 VERSION="${PA_BPA_VERSION:-latest}"
 DIR="${PA_BPA_DIR:-$HOME/pa-bpa}"
 PORT="${PA_BPA_PORT:-8080}"
@@ -39,6 +43,31 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 step() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 ok()   { printf '    \033[32m✓\033[0m %s\n' "$*"; }
 fail() { printf '\n\033[1;31mInstall stopped:\033[0m %s\n' "$*" >&2; exit 1; }
+
+# Writes this release's stack files into the current folder. Only a private build carries them
+# (it replaces this function); otherwise they're downloaded from the release page.
+stack_files() { return 1; }
+
+# Signs Docker in to GitHub's container registry, which a private build's images need. Docker
+# remembers the sign-in, so later updates don't ask again.
+registry_login() {
+  local token="${PA_BPA_GITHUB_TOKEN:-}" user
+  if [ -z "$token" ]; then
+    echo "    This release's images are private. Sign in with a GitHub token (classic) that has"
+    echo "    the read:packages scope. Create one at:"
+    echo "      https://github.com/settings/tokens/new?scopes=read:packages&description=PA%20BPA"
+    printf '    Paste the token here (it stays hidden), then press Enter: '
+    IFS= read -rs token 2>/dev/null </dev/tty || token=""
+    echo
+  fi
+  [ -n "$token" ] || fail "no GitHub token, so the images can't be downloaded. Run this again and paste the token when asked, or set PA_BPA_GITHUB_TOKEN."
+  user="$(curl -fsS -H "Authorization: Bearer $token" "$GITHUB_API/user" 2>/dev/null \
+    | grep -o '"login": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')" || true
+  [ -n "$user" ] || fail "GitHub didn't accept that token. Check it was copied whole and hasn't expired, then run this again."
+  printf '%s' "$token" | docker login ghcr.io --username "$user" --password-stdin >/dev/null 2>&1 \
+    || fail "Docker couldn't sign in to ghcr.io as $user. Check the token has the read:packages scope, then run this again."
+  ok "Signed in to GitHub's container registry as $user"
+}
 
 step "1/5  Checking Docker"
 if ! command -v docker >/dev/null 2>&1; then
@@ -65,12 +94,16 @@ ok "Docker is running ($(docker version --format '{{.Server.Version}}' 2>/dev/nu
 step "2/5  Downloading the release files"
 mkdir -p "$DIR"
 cd "$DIR"
-for f in docker-compose.yml Caddyfile; do
-  curl -fsSL --retry 3 -o "$f.download" "$BASE_URL/$f" \
-    || fail "couldn't download $f from $BASE_URL. Check your internet connection and that the release exists."
-  mv "$f.download" "$f"
-done
-ok "Saved to $DIR"
+if stack_files; then
+  ok "Saved this release's files to $DIR"
+else
+  for f in docker-compose.yml Caddyfile; do
+    curl -fsSL --retry 3 -o "$f.download" "$BASE_URL/$f" \
+      || fail "couldn't download $f from $BASE_URL. Check your internet connection and that the release exists."
+    mv "$f.download" "$f"
+  done
+  ok "Saved to $DIR"
+fi
 
 FRESH=0
 PASSWORD=""
@@ -140,7 +173,15 @@ fi
 
 step "4/5  Downloading and starting the dashboard (the first time takes a few minutes)"
 if [ "${PA_BPA_SKIP_PULL:-0}" != "1" ]; then
-  docker compose pull --quiet </dev/null || fail "couldn't download the images. Check your internet connection, then run this command again."
+  hint="Check your internet connection"
+  if [ "$PRIVATE_BUILD" = "1" ]; then
+    hint="$hint, and that your GitHub account has access to $REPO"
+    # Sign in when there's a token to use, or when the images won't download without one.
+    if [ -n "${PA_BPA_GITHUB_TOKEN:-}" ] || ! docker compose pull --quiet </dev/null >/dev/null 2>&1; then
+      registry_login
+    fi
+  fi
+  docker compose pull --quiet </dev/null || fail "couldn't download the images. $hint, then run this command again."
 fi
 docker compose up -d --remove-orphans </dev/null || fail "the dashboard didn't start. Run 'docker compose logs' in $DIR to see why."
 ok "Containers started"

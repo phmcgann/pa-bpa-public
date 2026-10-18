@@ -16,7 +16,7 @@ def test_every_bundled_item_has_a_date_and_is_current_today():
         if i["kind"] == "bundled":
             assert date.fromisoformat(i["as_of"]) and not i["review_due"]
     assert items["advisories"]["kind"] == "live" and items["advisories"]["status"] == "disabled"  # feed off in tests
-    assert items["scm_catalog"]["as_of"] == scm_catalog.load()["retrieved"]
+    assert items["scm_catalog"]["as_of"] == scm_catalog.as_of()
 
 
 def test_bundled_content_is_flagged_once_it_is_old():
@@ -43,7 +43,7 @@ def test_checks_missing_from_the_bundled_list_are_new_from_palo_alto():
     cov = scm_coverage.build([_scm(known), _scm(unknown)], [_row(known), _row(unknown)], {}, DEFAULT_WEIGHTS)
     flags = {c["check_id"]: c["new_check"] for c in cov["checks"]}
     assert flags == {known: False, unknown: True}
-    assert cov["new_checks"] == 1 and cov["catalog_as_of"] == scm_catalog.load()["retrieved"]
+    assert cov["new_checks"] == 1 and cov["catalog_as_of"] == scm_catalog.as_of()
     text = scm_coverage.as_text({**cov, "text": ""})
     assert "1 failed checks are new from Palo Alto" in text
     assert f"SCM {unknown} |" in text and "NEW: not in the bundled check list" in text

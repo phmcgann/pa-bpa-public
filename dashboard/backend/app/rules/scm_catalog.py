@@ -28,6 +28,7 @@ DISABLED_BY_DEFAULT: dict[int, str] = {
     200: "Off by default: Palo Alto fails its own predefined profile, whose low/informational actions are default",
     201: "Off by default: Palo Alto fails its own predefined profile, whose low/informational actions are default",
     267: "Off by default: where the forward trust/untrust certificates are stored couldn't be confirmed",
+    107: "Off by default: only matters when an upstream proxy hides users' addresses (matches the core rule's default)",
 }
 _BUSINESS = "Off by default: blocking these is a business decision (matches the core rule's default)"
 _PQ = "Off by default: post-quantum crypto is new and most peers can't use it yet (matches the core rule's default)"
@@ -83,6 +84,11 @@ def object_type_label(object_type: str) -> str:
 def load() -> dict:
     with open(_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def as_of() -> str:
+    """When the bundled list was last brought up to date (its latest addition, else the original retrieval)."""
+    return load().get("updated") or load()["retrieved"]
 
 
 def checks_by_id() -> dict[int, dict]:

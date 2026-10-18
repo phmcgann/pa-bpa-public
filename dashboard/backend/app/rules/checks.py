@@ -704,6 +704,43 @@ def check_url_credential_enforcement_disabled(data: dict, thresholds: dict) -> l
     return out
 
 
+# File types Palo Alto SCM check #45 wants blocked (in a rule for any application, both directions).
+FILE_BLOCKING_RECOMMENDED = ("7z", "bat", "chm", "class", "cpl", "dll", "hlp", "hta", "jar", "ocx", "pif", "scr",
+                             "torrent", "vbe", "wsf")
+
+
+def check_file_blocking_missing_recommended(data: dict, thresholds: dict) -> list[dict]:
+    """Palo Alto SCM #45: block the common malware file types and alert on every other type, in rules
+    for any application in both directions. A profile that blocks nothing at all is
+    file_blocking_nothing_blocked's finding instead."""
+    out = []
+    for profile in _profiles_of(data, "file_blocking"):
+        rules = profile.get("settings", {}).get("rules", [])
+        if not rules or not any(r["action"] == "block" for r in rules):
+            continue
+        broad = [r for r in rules if "any" in r["applications"] and r["direction"] == "both"]
+        blocked = {t for r in broad if r["action"] == "block" for t in r["file_types"]}
+        missing = [] if "any" in blocked else [t for t in FILE_BLOCKING_RECOMMENDED if t not in blocked]
+        alert_all = any(r["action"] in ("alert", "block") and "any" in r["file_types"] for r in broad)
+        if not missing and alert_all:
+            continue
+        problems = []
+        if missing:
+            problems.append(f"doesn't block {', '.join(missing)}")
+        if not alert_all:
+            problems.append("has no alert rule for all other file types")
+        out.append({
+            "key": profile["name"],
+            "scm_object": {"type": "file_blocking_profile", "name": profile["name"]},
+            "message": f"File Blocking profile '{profile['name']}' {' and '.join(problems)} "
+                       "(in a rule for any application, both directions)",
+            "recommendation": "Add a rule with application any, direction both and action block for "
+                              f"{', '.join(FILE_BLOCKING_RECOMMENDED)}, and a final rule alerting on file type any. "
+                              "The predefined 'strict file blocking' profile can be cloned as a starting point.",
+        })
+    return out
+
+
 def check_file_blocking_nothing_blocked(data: dict, thresholds: dict) -> list[dict]:
     out = []
     for profile in _profiles_of(data, "file_blocking"):
@@ -954,11 +991,24 @@ def check_password_complexity_weak(data: dict, thresholds: dict) -> list[dict]:
         return [{"key": "global", "message": "Minimum Password Complexity isn't enabled for local administrators",
                  "recommendation": f"Enable Minimum Password Complexity with a minimum length of at least "
                                    f"{thresholds['min_length']} and character-class requirements"}]
+    problems, fixes = [], []
     length = pc["minimum_length"] or 8
     if length < thresholds["min_length"]:
-        return [{"key": "global", "message": f"Minimum password length is {length}",
-                 "recommendation": f"Raise the minimum length to at least {thresholds['min_length']}"}]
-    return []
+        problems.append(f"the minimum length is {length}")
+        fixes.append(f"raise the minimum length to at least {thresholds['min_length']}")
+    # Stored before the classes were parsed: only the length can be judged.
+    missing = [label for label, n in (pc.get("minimum_classes") or {}).items() if not n]
+    if missing:
+        problems.append(f"passwords don't need {_join_or(['a ' + m if m[0] not in 'aeiou' else 'an ' + m for m in missing])}")
+        fixes.append(f"require at least one {', '.join(missing)}")
+    if not problems:
+        return []
+    return [{"key": "global", "message": "Minimum Password Complexity is weak: " + "; ".join(problems),
+             "recommendation": f"Under Device > Setup > Management > Minimum Password Complexity, {' and '.join(fixes)}"}]
+
+
+def _join_or(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " or " + items[-1]
 
 
 def check_mgmt_tls_below_1_2(data: dict, thresholds: dict) -> list[dict]:
@@ -1518,17 +1568,19 @@ def check_mgmt_no_acl(data: dict, thresholds: dict) -> list[dict]:
 
 def check_mgmt_profile_cleartext(data: dict, thresholds: dict) -> list[dict]:
     out = []
+    # Every profile, attached or not, as Palo Alto SCM grades them (check #228): an unattached one is
+    # one interface setting away from exposing the protocols.
     for profile in data.get("interface_mgmt_profiles", []):
-        if not profile.get("interfaces"):
-            continue
         services = profile.get("services", {})
         enabled = [s for s in ("telnet", "http") if services.get(s)]
         if enabled:
             protocols = " and ".join(s.upper() if s == "http" else s.capitalize() for s in enabled)
+            where = (f"on {', '.join(profile['interfaces'])}" if profile.get("interfaces")
+                     else "(not attached to any interface yet)")
             out.append({
                 "key": profile["name"],
-                "message": f"Interface management profile '{profile['name']}' enables {protocols} on "
-                           f"{', '.join(profile['interfaces'])}",
+                "scm_object": {"type": "interface_management_profile", "name": profile["name"]},
+                "message": f"Interface management profile '{profile['name']}' enables {protocols} {where}",
                 "recommendation": "Disable Telnet and HTTP; allow only HTTPS and SSH for management, and "
                                   "restrict the profile's permitted IPs",
             })
@@ -1945,6 +1997,23 @@ def check_telemetry_disabled(data: dict, thresholds: dict) -> list[dict]:
     off = (data.get("device_settings") or {}).get("telemetry_off") or []
     return _one(bool(off), f"Telemetry sharing is off for {', '.join(off)}",
                 "Enable telemetry under Device > Setup > Telemetry if your data-sharing policy allows")
+
+
+def check_xff_not_stripped(data: dict, thresholds: dict) -> list[dict]:
+    d = data.get("device_settings")
+    return _one(d is not None and d.get("xff_strip") is False,
+                "Strip X-Forwarded-For Header is off, so internal client addresses in that header are passed on "
+                "to the servers users connect to",
+                "Enable Strip X-Forwarded-For Header under Device > Setup > Content-ID > X-Forwarded-For Headers")
+
+
+def check_xff_userid_off(data: dict, thresholds: dict) -> list[dict]:
+    d = data.get("device_settings")
+    return _one(d is not None and d.get("xff_userid") is False,
+                "User-ID doesn't read the X-Forwarded-For header, so users behind an upstream proxy are seen as "
+                "the proxy's address",
+                "If a proxy sits between users and the firewall, enable Use X-Forwarded-For Header in User-ID under "
+                "Device > Setup > Content-ID > X-Forwarded-For Headers")
 
 
 def check_update_server_verification_off(data: dict, thresholds: dict) -> list[dict]:
@@ -3058,6 +3127,9 @@ CHECKS = {
     "wildfire_grayware_not_reported": check_wildfire_grayware_not_reported,
     "wildfire_inline_cloud_analysis_disabled": check_wildfire_inline_cloud_analysis_disabled,
     "wildfire_realtime_hold_off": check_wildfire_realtime_hold_off,
+    "file_blocking_missing_recommended": check_file_blocking_missing_recommended,
+    "xff_not_stripped": check_xff_not_stripped,
+    "xff_userid_off": check_xff_userid_off,
     "session_timeout_changed": check_session_timeout_changed,
     "session_accelerated_aging_off": check_session_accelerated_aging_off,
     "packet_buffer_protection_global_off": check_packet_buffer_protection_global_off,

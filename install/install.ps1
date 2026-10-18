@@ -27,6 +27,10 @@ function Install-PaBpa {
     $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is very slow with the progress bar on
 
     $Repo = 'phmcgann/pa-bpa-public'
+    # $true in a build for a private copy of the repo: its images need a GitHub sign-in, and it carries
+    # its own stack files (Write-StackFiles below), since its release page needs a sign-in too.
+    $PrivateBuild = $false
+    $GitHubApi = if ($env:PA_BPA_GITHUB_API) { $env:PA_BPA_GITHUB_API } else { 'https://api.github.com' }
     $Version = if ($env:PA_BPA_VERSION) { $env:PA_BPA_VERSION } else { 'latest' }
     $Dir = if ($env:PA_BPA_DIR) { $env:PA_BPA_DIR } else { Join-Path $env:USERPROFILE 'pa-bpa' }
     $Port = if ($env:PA_BPA_PORT) { [int]$env:PA_BPA_PORT } else { 8080 }
@@ -72,6 +76,36 @@ function Install-PaBpa {
     function Write-TextFile([string]$path, [string]$text) {
         [IO.File]::WriteAllText($path, ($text -replace "`r`n", "`n"), (New-Object Text.UTF8Encoding $false))
     }
+    # Writes this release's stack files into $Dir. Only a private build carries them (it replaces
+    # this function); otherwise they're downloaded from the release page.
+    function Write-StackFiles { return $false }
+    # Signs Docker in to GitHub's container registry, which a private build's images need. Docker
+    # remembers the sign-in, so later updates don't ask again.
+    function Connect-Registry {
+        $token = $env:PA_BPA_GITHUB_TOKEN
+        if (-not $token) {
+            Write-Host "    This release's images are private. Sign in with a GitHub token (classic) that has"
+            Write-Host '    the read:packages scope. Create one at:'
+            Write-Host '      https://github.com/settings/tokens/new?scopes=read:packages&description=PA%20BPA'
+            $secure = Read-Host -AsSecureString '    Paste the token here (it stays hidden), then press Enter'
+            $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+            try { $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+            finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+        }
+        $token = "$token".Trim()
+        if (-not $token) {
+            Stop-Install "no GitHub token, so the images can't be downloaded. Run this again and paste the token when asked, or set `$env:PA_BPA_GITHUB_TOKEN."
+        }
+        $user = $null
+        try { $user = (Invoke-RestMethod -Uri "$GitHubApi/user" -Headers @{ Authorization = "Bearer $token" } -UseBasicParsing -TimeoutSec 30).login }
+        catch { }
+        if (-not $user) { Stop-Install "GitHub didn't accept that token. Check it was copied whole and hasn't expired, then run this again." }
+        $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        try { $null = $token | & docker login ghcr.io --username $user --password-stdin 2>&1; $code = $LASTEXITCODE }
+        finally { $ErrorActionPreference = $old }
+        if ($code -ne 0) { Stop-Install "Docker couldn't sign in to ghcr.io as $user. Check the token has the read:packages scope, then run this again." }
+        Ok "Signed in to GitHub's container registry as $user"
+    }
 
     Step '1/5  Checking Docker'
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -111,12 +145,15 @@ function Install-PaBpa {
     Step '2/5  Downloading the release files'
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
     Set-Location $Dir
-    foreach ($f in 'docker-compose.yml', 'Caddyfile') {
-        try { Invoke-WebRequest -Uri "$BaseUrl/$f" -OutFile "$f.download" -UseBasicParsing }
-        catch { Stop-Install "couldn't download $f from $BaseUrl. Check your internet connection and that the release exists." }
-        Move-Item -Force "$f.download" $f
+    if (Write-StackFiles) { Ok "Saved this release's files to $Dir" }
+    else {
+        foreach ($f in 'docker-compose.yml', 'Caddyfile') {
+            try { Invoke-WebRequest -Uri "$BaseUrl/$f" -OutFile "$f.download" -UseBasicParsing }
+            catch { Stop-Install "couldn't download $f from $BaseUrl. Check your internet connection and that the release exists." }
+            Move-Item -Force "$f.download" $f
+        }
+        Ok "Saved to $Dir"
     }
-    Ok "Saved to $Dir"
 
     $Fresh = $false
     $Password = ''
@@ -185,8 +222,14 @@ Password: $Password
 
     Step '4/5  Downloading and starting the dashboard (the first time takes a few minutes)'
     if ($env:PA_BPA_SKIP_PULL -ne '1') {
+        $hint = 'Check your internet connection'
+        if ($PrivateBuild) {
+            $hint += ", and that your GitHub account has access to $Repo"
+            # Sign in when there's a token to use, or when the images won't download without one.
+            if ($env:PA_BPA_GITHUB_TOKEN -or (Invoke-Docker compose pull --quiet).Code -ne 0) { Connect-Registry }
+        }
         $r = Invoke-Docker compose pull --quiet
-        if ($r.Code -ne 0) { Stop-Install "couldn't download the images. Check your internet connection, then run this command again.`n$($r.Output)" }
+        if ($r.Code -ne 0) { Stop-Install "couldn't download the images. $hint, then run this command again.`n$($r.Output)" }
     }
     $r = Invoke-Docker compose up -d --remove-orphans
     if ($r.Code -ne 0) { Stop-Install "the dashboard didn't start. Run 'docker compose logs' in $Dir to see why.`n$($r.Output)" }

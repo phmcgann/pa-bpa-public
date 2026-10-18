@@ -958,7 +958,7 @@ def get_scm_catalog(session: Session = Depends(get_session)):
             "default_off_reason": scm_catalog.DISABLED_BY_DEFAULT.get(c["id"]),
             "core_rules": linked.get(c["id"], []),
         })
-    return {"about": catalog["_about"], "retrieved": catalog["retrieved"], "checks": checks,
+    return {"about": catalog["_about"], "retrieved": scm_catalog.as_of(), "checks": checks,
             "include_in_score": get_scm_settings(session).include_in_score,
             "configured": scm_client.configured()}
 

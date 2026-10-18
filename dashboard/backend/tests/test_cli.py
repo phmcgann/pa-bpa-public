@@ -91,7 +91,11 @@ def test_unused_objects_delete_groups_first_with_scope():
 def test_device_settings_and_free_text_choices():
     data = {"security_rules": [rule("a")]}
     assert cmds(data, "password_complexity_weak", "global") == [
-        "set mgt-config password-complexity enabled yes", "set mgt-config password-complexity minimum-length 12"]
+        "set mgt-config password-complexity enabled yes", "set mgt-config password-complexity minimum-length 12",
+        "set mgt-config password-complexity minimum-uppercase-letters 1",
+        "set mgt-config password-complexity minimum-lowercase-letters 1",
+        "set mgt-config password-complexity minimum-numeric-letters 1",
+        "set mgt-config password-complexity minimum-special-characters 1"]
     banner = cli.for_finding(f("no_login_banner", "global"), cli.Context(data))
     assert banner["commands"] == ['set deviceconfig system login-banner "{{login_banner}}"']
     assert banner["choices"][0]["free"] is True

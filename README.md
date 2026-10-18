@@ -83,16 +83,16 @@ Weights and thresholds are editable in **Settings**. A finding doesn't count whe
 
 ## The Checks
 
-The **core rules** are the dashboard's own rule set, labelled on screen and in reports with the brand's name for it (**Harborlight BPA** by default). Each rule records what it's based on: Palo Alto's published best-practice documentation (83 rules), the CIS Palo Alto Firewall Benchmark (6), or the project's own analysis (101, labelled Custom), plus the matching Palo Alto SCM check numbers where Palo Alto checks the same thing.
+The **core rules** are the dashboard's own rule set, labelled on screen and in reports with the brand's name for it (**Harborlight BPA** by default). Each rule records what it's based on: Palo Alto's published best-practice documentation (85 rules), the CIS Palo Alto Firewall Benchmark (6), or the project's own analysis (102, labelled Custom), plus the matching Palo Alto SCM check numbers where Palo Alto checks the same thing.
 
 | Category | Rules | Examples |
 |---|---|---|
-| Security Profiles | 31 | Decoder actions, severity actions, DNS Security, URL categories, WildFire, inline cloud analysis |
+| Security Profiles | 32 | Decoder actions, severity actions, DNS Security, URL categories, WildFire, file blocking, inline cloud analysis |
 | Security Policy | 30 | Any/any rules, missing profiles, shadowed rules, threat-intel deny rules, QUIC |
-| Access Control | 20 | Management access lists, cleartext protocols, admin lockout and MFA |
+| Access Control | 21 | Management access lists, cleartext protocols, admin lockout and MFA |
 | Logging | 16 | Log at session end, log forwarding, syslog over TLS |
 | GlobalProtect | 14 | TLS, MFA, certificate checks, connection enforcement |
-| Device Hardening | 13 | Banners, NTP, password complexity, API key lifetime |
+| Device Hardening | 14 | Banners, NTP, password complexity, API key lifetime, X-Forwarded-For stripping |
 | High Availability | 11 | Link/path monitoring, HA2 keepalive, session sync |
 | VPN | 11 | IKEv2, crypto strength, tunnel monitoring, anti-replay |
 | Decryption | 11 | Outbound decryption, TLS versions, certificate checks, weak ciphers |
