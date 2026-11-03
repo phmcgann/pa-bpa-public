@@ -170,6 +170,9 @@ export function FindingsTable({ findings, view, onViewChange, onDismiss, onUndis
                       Not scored twice — already covered by {brand.ruleSet}: {f.duplicate_of?.map((id) => coreTitles.get(id) ?? id).join("; ")}
                     </div>
                   )}
+                  {f.not_scored_reason === "by_design" && (
+                    <div className="text-[11px] text-fg-muted mt-1">Not scored — {brand.ruleSet} differs from Palo Alto here on purpose: {f.by_design}</div>
+                  )}
                   {f.not_scored_reason === "scm_excluded" && (
                     <div className="text-[11px] text-fg-muted mt-1">Not scored — Palo Alto SCM findings are excluded from the score in Settings</div>
                   )}

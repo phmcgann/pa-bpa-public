@@ -1294,10 +1294,17 @@ def parse_device_settings(layers: list[ET.Element]) -> dict:
             v = xml_text(e, "size-limit", None)
             if e.get("name") and v and v.isdigit():
                 size_limits[e.get("name")] = int(v)
+    # Device > Setup > Content-ID > Allow Forwarding of Decrypted Content (per virtual system on a multi-vsys
+    # firewall, so it's looked for wherever it sits under the device). Off by default.
+    forward_decrypted = None
+    for layer in layers:
+        for el in layer.findall("devices/entry//allow-forward-decrypted-content"):
+            forward_decrypted = (el.text or "").strip() or forward_decrypted
     return {
         # Device > Setup > WildFire: per-file-type forwarding limits the config sets (in the file
         # type's own unit, MB or KB), and Report Grayware Files (off by default).
-        "wildfire": {"size_limits": size_limits, "report_grayware": grayware == "yes"},
+        "wildfire": {"size_limits": size_limits, "report_grayware": grayware == "yes",
+                     "forward_decrypted": forward_decrypted == "yes"},
         # Off unless turned on.
         "cert_expiration_check": values["cert_expiration_check"] == "yes",
         "xff_userid": values["xff_userid"] == "yes",

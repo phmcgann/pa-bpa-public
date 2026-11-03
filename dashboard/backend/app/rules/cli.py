@@ -107,11 +107,18 @@ def _attach_profile_group(ctx: Context, key: str) -> Optional[dict]:
             "choices": [_choice("profile_group", "Security profile group", groups, "<PROFILE-GROUP>")]}
 
 
+def _log_forwarding_profiles(ctx: Context) -> list[str]:
+    """Log Forwarding profiles to offer. PAN-OS's IoT Security default isn't one: it only feeds that service."""
+    from .checks import IOT_DEFAULT_LOG_FORWARDING
+    return [p["name"] for p in ctx.data.get("log_forwarding_profiles") or []
+            if p["name"].lower() != IOT_DEFAULT_LOG_FORWARDING]
+
+
 def _log_forwarding(ctx: Context, key: str) -> Optional[dict]:
     rule = ctx.rules.get(key)
     if not rule:
         return None
-    profiles = [p["name"] for p in ctx.data.get("log_forwarding_profiles") or []]
+    profiles = _log_forwarding_profiles(ctx)
     return {"commands": [f"set {ctx.rulebase(rule)} log-setting {{{{log_forwarding}}}}"],
             "choices": [_choice("log_forwarding", "Log Forwarding profile", profiles, "<LOG-FORWARDING-PROFILE>")]}
 
@@ -173,7 +180,7 @@ def _deny_rule(ctx: Context, name: str, match: str, description: str, note: str)
     base, n = name, 2
     while name in ctx.rules:
         name, n = f"{base}-{n}", n + 1
-    profiles = [p["name"] for p in ctx.data.get("log_forwarding_profiles") or []]
+    profiles = _log_forwarding_profiles(ctx)
     log = " log-setting {{log_forwarding}}" if profiles else ""
     commands = []
     for rulebase_path in _new_rulebases(ctx):

@@ -1,7 +1,7 @@
 {
  "_about": "Palo Alto Networks Strata Cloud Manager (SCM) Best Practice Assessment checks, as returned by the Posture Management API (POST /posture/checks/v1/reports/config-file-upload) for synthetic NGFW configs built to populate as many object types as possible. Names, severities and descriptions are Palo Alto's own wording. Only checks that ran against the synthetic configs are listed; refresh with scripts/fetch_scm_checks.py when the all-checks endpoint is reachable. Checks first seen in later SCM runs are added with the name and severity those runs reported; 'updated' is the date of the latest addition.",
  "retrieved": "2026-09-23",
- "updated": "2026-10-16",
+ "updated": "2026-11-03",
  "platform": "ngfw",
  "checks": [
   {
@@ -1107,6 +1107,14 @@
    "section": "objects",
    "object_type": "anti_spyware_profile",
    "description": "The \"default\" setting takes the default action defined by Palo Alto Networks experts to respond to detected events. Sometimes the default setting is not strict enough for best security for medium, high, and critical severity events, but the default setting helps maintain application availability for low and informational events when the Palo Alto Networks experts determine that it is safe to allow or alert on the traffic instead of blocking it."
+  },
+  {
+   "id": 203,
+   "name": "Forwarding decrypted content to WildFire should be enabled.",
+   "severity": "Warning",
+   "section": "device",
+   "object_type": "device_setup_content_id",
+   "description": "Allowing the firewall to forward decrypted content sends files from decrypted SSL/TLS sessions to WildFire for analysis. (Added from an SCM run on 2026-11-03; the name is Palo Alto's.)"
   },
   {
    "id": 204,

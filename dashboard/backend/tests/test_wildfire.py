@@ -47,7 +47,8 @@ def test_hardened_config_raises_nothing():
 def test_parsed_values():
     data = _data(_root())
     assert data["device_settings"]["wildfire"] == {
-        "size_limits": {"pe": 16, "pdf": 3072, "MacOSX": 10, "archive": 50}, "report_grayware": True}
+        "size_limits": {"pe": 16, "pdf": 3072, "MacOSX": 10, "archive": 50}, "report_grayware": True,
+        "forward_decrypted": False}
     av = data["security_profiles"]["antivirus"][0]
     assert av["settings"]["wfrt_hold_mode"] is True
     assert data["security_profiles"]["wildfire_analysis"][0]["settings"]["inline_cloud_analysis"] is True
@@ -123,3 +124,37 @@ def test_rules_link_their_scm_checks():
     assert SCM_MATCHES["wildfire_size_limit_below_default"] == (109, 110, 111, 112, 113, 114, 115, 204, 205, 251, 361)
     for rid in RULE_IDS:
         assert SCM_MATCHES[rid]
+
+
+# ── SCM #203: Allow Forwarding of Decrypted Content ───────────────────────
+
+DECRYPT = {"rules": [{"name": "outbound", "action": "decrypt", "disabled": "no"}], "profiles": []}
+
+
+def _forwarding(root_text: str | None):
+    root = _root()
+    if root_text is not None:
+        vsys = root.find("devices/entry/vsys/entry")
+        setting = vsys.find("setting")
+        if setting is None:
+            setting = ET.SubElement(vsys, "setting")
+        ssl = ET.SubElement(setting, "ssl-decrypt")
+        ET.SubElement(ssl, "allow-forward-decrypted-content").text = root_text
+    return _data(root)
+
+
+def test_decrypted_content_forwarding_is_parsed_and_off_by_default():
+    assert _forwarding(None)["device_settings"]["wildfire"]["forward_decrypted"] is False
+    assert _forwarding("yes")["device_settings"]["wildfire"]["forward_decrypted"] is True
+
+
+def test_decrypted_content_not_forwarded_only_matters_when_decrypting():
+    check = checks.check_wildfire_decrypted_content_not_forwarded
+    off = _forwarding(None)
+    assert check({**off, "decryption": DECRYPT}, {})[0]["key"] == "global"
+    assert check({**_forwarding("yes"), "decryption": DECRYPT}, {}) == []
+    assert check({**off, "decryption": {"rules": [{**DECRYPT["rules"][0], "action": "no-decrypt"}]}}, {}) == []
+    # An upload from before the setting was parsed isn't judged.
+    old = {**off, "decryption": DECRYPT, "device_settings": {"wildfire": {"report_grayware": True}}}
+    assert check(old, {}) == []
+    assert SCM_MATCHES["wildfire_decrypted_content_not_forwarded"] == (203,)

@@ -25,39 +25,10 @@ from __future__ import annotations
 
 from ..rules.definitions import RULES_BY_ID
 from . import scm_catalog
-from .builtin_profiles import with_builtins
-from .checks import ALWAYS_ON, _agent_configs, _profiles_of, file_blocking_shortfalls
-from .scm_findings import core_rules_by_scm_check, not_applicable as _not_applicable, reported
+from .scm_findings import (core_rules_by_scm_check, deliberate_differences as _deliberate,
+                           not_applicable as _not_applicable, reported, why as _why)
 
 STATUS_ORDER = ["core_missed", "object_mismatch", "no_rule", "core_off", "by_design", "not_applicable", "covered"]
-
-
-def _deliberate(data: dict | None) -> dict[int, dict[str | None, str]]:
-    """check id -> {object name: why} for objects a linked core rule saw and skipped on purpose."""
-    if data is None:
-        return {}
-    out: dict[int, dict[str | None, str]] = {}
-    for p in (data.get("mgmt_plane") or {}).get("radius") or []:
-        if (p.get("protocol") or "").upper().startswith("PEAP"):
-            out.setdefault(233, {})[p["name"]] = (f"uses {p['protocol']}, an EAP method that tunnels the credentials; "
-                                                  "SCM accepts only EAP-TTLS with PAP")
-    for portal, c in _agent_configs(data):
-        if (c.get("user_override") in ("allowed", "with-comment") and not c.get("override_timeout_min")
-                and c.get("connect_method") not in ALWAYS_ON):
-            out.setdefault(69, {})[portal["name"]] = (f"connect method is {c.get('connect_method')}, not always-on, so "
-                                                      "a disable timeout has nothing to restore")
-        if not c.get("internal_host_detection") and not (c.get("internal_gateways") and c.get("external_gateways")):
-            out.setdefault(68, {})[portal["name"]] = ("internal host detection only matters when the portal lists both "
-                                                      "internal and external gateways")
-    # SCM fails #45 even on Palo Alto's own strict File Blocking profile, so a profile that does what the
-    # check asks is passed on purpose rather than missed.
-    for p in _profiles_of(with_builtins(data)[0], "file_blocking"):
-        rules = p["settings"].get("rules", [])
-        if any(r["action"] == "block" for r in rules) and not file_blocking_shortfalls(rules):
-            out.setdefault(45, {})[p["name"]] = ("blocks all the listed file types and alerts on every other type, for "
-                                                 "any application in both directions, as the check asks; SCM fails "
-                                                 "this check even on Palo Alto's own strict File Blocking profile")
-    return out
 
 
 def _safe_fields(rows: list[dict]) -> list[str]:
@@ -123,7 +94,7 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
             status = "no_rule"
         elif not any(enabled(r) for r in rules):
             status = "core_off"
-        elif cid in deliberate and all(_scm_object(f)["object_name"] in deliberate[cid] for f in fs
+        elif cid in deliberate and all(_why(deliberate[cid], _scm_object(f)["object_name"]) for f in fs
                                        if not f.get("duplicate_of")):
             status = "by_design"
         elif any(fired.get(r) for r in rules):
@@ -150,7 +121,7 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
             "core_rules": [{"id": r, "title": RULES_BY_ID[r].title, "enabled": enabled(r), "findings": fired.get(r, 0)}
                           for r in rules],
             "failed_fields": _safe_fields([r for r in rows if not not_applicable(r)] or rows),
-            "reason": "; ".join(sorted({deliberate[cid][_scm_object(f)["object_name"]] for f in fs
+            "reason": "; ".join(sorted({_why(deliberate[cid], _scm_object(f)["object_name"]) for f in fs
                                         if not f.get("duplicate_of")})) if status == "by_design" else None,
         })
     checks.sort(key=lambda c: (STATUS_ORDER.index(c["status"]), -c["points"], c["check_id"]))

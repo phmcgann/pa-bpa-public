@@ -144,6 +144,46 @@ def test_scm_results_on_unused_predefined_profiles_are_not_findings():
     assert f["finding_key"] == "scm_33:antivirus_profile:default"
 
 
+def test_threat_list_block_without_log_forwarding_is_a_deliberate_difference():
+    blocking = {"name": "block-in", "action": "deny", "disabled": "no", "sources": ["panw-highrisk-ip-list"],
+                "destinations": ["any"], "log_end": "yes", "log_setting": None}
+    data = {"security_rules": [blocking], "decryption": {"rules": []}}
+    cov = scm_coverage.build([_scm(263, "security_rulebase", "global")], [_row(263, "security_rulebase", "")],
+                             {}, DEFAULT_WEIGHTS, data)
+    check = cov["checks"][0]
+    assert check["status"] == "by_design" and "has no Log Forwarding profile" in check["reason"]
+    # The IoT Security default doesn't forward logs anywhere SCM counts either.
+    iot = {**data, "security_rules": [{**blocking, "log_setting": "IoT Security Default Profile"}]}
+    assert scm_coverage.build([_scm(263, "security_rulebase", "global")], [_row(263, "security_rulebase", "")],
+                              {}, DEFAULT_WEIGHTS, iot)["checks"][0]["status"] == "by_design"
+    # With its logs forwarded, SCM failing it is a real miss to look into.
+    forwarded = {**data, "security_rules": [{**blocking, "log_setting": "to-siem"}]}
+    assert scm_coverage.build([_scm(263, "security_rulebase", "global")], [_row(263, "security_rulebase", "")],
+                              {}, DEFAULT_WEIGHTS, forwarded)["checks"][0]["status"] == "core_missed"
+
+
+def test_scm_findings_on_deliberate_differences_carry_the_reason():
+    from app.rules import scm_findings
+    blocking = {"name": "block-in", "action": "deny", "disabled": "no", "sources": ["panw-highrisk-ip-list"],
+                "destinations": ["any"], "log_end": "yes", "log_setting": None}
+    data = {"security_rules": [blocking], "decryption": {"rules": []}}
+    rows = [_row(263, "security_rulebase", "")]
+    [f] = scm_findings.build(rows, data, [], {})
+    assert "has no Log Forwarding profile" in f["by_design"] and f["duplicate_of"] == []
+    # Not when the linked core rule is turned off (it didn't look), or when the rule forwards its logs.
+    off = {"edl_high_risk_not_blocked": {"enabled": False}}
+    assert scm_findings.build(rows, data, [], off)[0]["by_design"] is None
+    forwarded = {**data, "security_rules": [{**blocking, "log_setting": "to-siem"}]}
+    assert scm_findings.build(rows, forwarded, [], {})[0]["by_design"] is None
+
+
+def test_decrypted_content_check_without_decryption_is_a_deliberate_difference():
+    data = {"decryption": {"rules": []}}
+    cov = scm_coverage.build([_scm(203, "device_setup_content_id", "global")],
+                             [_row(203, "device_setup_content_id", "")], {}, DEFAULT_WEIGHTS, data)
+    assert cov["checks"][0]["status"] == "by_design" and "nothing is decrypted" in cov["checks"][0]["reason"]
+
+
 def test_ha_checks_still_count_when_ha_is_enabled():
     data = {"ha_config": {"enabled": True}}
     cov = scm_coverage.build([_scm(145, "high_availability", "global")], [_row(145, "high_availability", None)],

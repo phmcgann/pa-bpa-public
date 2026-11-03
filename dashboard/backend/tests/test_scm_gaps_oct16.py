@@ -133,7 +133,7 @@ def test_x_forwarded_for_settings():
 def test_new_palo_alto_checks_are_in_the_bundled_list_and_linked():
     cat = scm_catalog.checks_by_id()
     assert {414, 108, 107} <= set(cat) and cat[414]["severity"] == "Critical"
-    assert scm_catalog.as_of() == "2026-10-16"
+    assert scm_catalog.as_of() >= "2026-10-16"
     linked = scm_findings.core_rules_by_scm_check()
     assert "wildfire_realtime_hold_off" in linked[414]
     assert linked[108] == ["xff_not_stripped"] and linked[107] == ["xff_userid_off"]

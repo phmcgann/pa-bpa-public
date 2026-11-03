@@ -13,7 +13,7 @@ It replaces an older script pipeline (`collect_data.py` → `generate_report.py`
 | **Repository** | `phmcgann/pa-bpa-public` |
 | **Backend** | Python · FastAPI · SQLModel (SQLite by default, Postgres supported) |
 | **Frontend** | React 19 · Vite · TypeScript · Tailwind CSS v4 |
-| **Checks** | 190 core rules (181 on by default), 133 of them mapped to 187 Palo Alto SCM checks |
+| **Checks** | 194 core rules (184 on by default), 137 of them mapped to 191 Palo Alto SCM checks |
 | **Inputs** | PAN-OS config export (XML), tech support file (`.tgz`), Panorama export or Panorama tech support file (per managed firewall) |
 | **Outputs** | Interactive dashboard, printable/PDF report with cover, sections and appendix |
 
@@ -83,7 +83,7 @@ Weights and thresholds are editable in **Settings**. A finding doesn't count whe
 
 ## The Checks
 
-The **core rules** are the dashboard's own rule set, labelled on screen and in reports with the brand's name for it (**Harborlight BPA** by default). Each rule records what it's based on: Palo Alto's published best-practice documentation (85 rules), the CIS Palo Alto Firewall Benchmark (6), or the project's own analysis (102, labelled Custom), plus the matching Palo Alto SCM check numbers where Palo Alto checks the same thing.
+The **core rules** are the dashboard's own rule set, labelled on screen and in reports with the brand's name for it (**Harborlight BPA** by default). Each rule records what it's based on: Palo Alto's published best-practice documentation (86 rules), the CIS Palo Alto Firewall Benchmark (6), or the project's own analysis (102, labelled Custom), plus the matching Palo Alto SCM check numbers where Palo Alto checks the same thing.
 
 | Category | Rules | Examples |
 |---|---|---|
@@ -95,7 +95,7 @@ The **core rules** are the dashboard's own rule set, labelled on screen and in r
 | Device Hardening | 14 | Banners, NTP, password complexity, API key lifetime, X-Forwarded-For stripping |
 | High Availability | 11 | Link/path monitoring, HA2 keepalive, session sync |
 | VPN | 11 | IKEv2, crypto strength, tunnel monitoring, anti-replay |
-| Decryption | 11 | Outbound decryption, TLS versions, certificate checks, weak ciphers |
+| Decryption | 12 | Outbound decryption, TLS versions, certificate checks, weak ciphers, decrypted files sent to WildFire |
 | Software | 8 | PAN-OS releases past or near end-of-life (Palo Alto's published dates), published advisories affecting the running version |
 | DoS Protection | 7 | DoS policy and profiles, flood thresholds |
 | Network Security | 6 | Zone protection: reconnaissance, flood and packet-based protection |
@@ -128,7 +128,7 @@ An assessment can optionally be sent to **Palo Alto's own BPA** in Strata Cloud 
 - Credentials come only from server environment variables — never from the browser.
 - A result that repeats a core finding on the same object is shown but not scored twice.
 - The **coverage-gap view** compares a stored SCM run with the core findings check by check (`covered`, `core_missed`, `object_mismatch`, `core_off`, `no_rule`), and **Copy gap list** exports check numbers and field names only — no client object names — so gaps can be closed in the core rules. This keeps core scoring close to SCM even when SCM can't be run.
-- SCM results that only concern PAN-OS built-in profiles nothing uses, or HA settings on a firewall without HA, are marked **not applicable** in that view rather than counted as gaps: the core rules skip them on purpose.
+- SCM results that only concern PAN-OS built-in profiles nothing uses, or HA settings on a firewall without HA, are marked **not applicable** in that view rather than counted as gaps, and aren't listed or scored as findings: the core rules skip them on purpose.
 
 ## Remediation & CLI Commands
 

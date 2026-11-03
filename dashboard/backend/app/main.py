@@ -189,6 +189,8 @@ def compute_findings(assessment: Assessment, session: Session) -> tuple[list[dic
         if f.get("program") == "scm":
             if f.get("duplicate_of"):
                 f["not_scored_reason"] = "duplicate"
+            elif f.get("by_design"):
+                f["not_scored_reason"] = "by_design"
             elif not include_scm:
                 f["not_scored_reason"] = "scm_excluded"
     active = [f for f in findings

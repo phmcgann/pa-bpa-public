@@ -3,6 +3,18 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.7] - 2026-11-03
+
+### Scoring
+- Palo Alto SCM findings where the core rules differ from SCM on purpose (shown as **by design** in the SCM coverage view, with the reason) are still listed but no longer scored, the same as SCM findings the core rules already cover. The findings table says why. For example, a block rule for the high-risk IP list without a Log Forwarding profile no longer costs SCM's points on top of the log forwarding check.
+
+### Checks
+- New: decryption is in use, but **Allow Forwarding of Decrypted Content** is off, so files in decrypted sessions never reach WildFire (Palo Alto SCM check #203, new from Palo Alto). Re-analyze an assessment to pick up the setting.
+- In the SCM coverage view, SCM checks #261 to #264 (block the known-malicious and high-risk IP lists) are shown as **by design** when a rule does block the list but has no Log Forwarding profile: SCM also wants its logs forwarded, and that's the log forwarding check's finding. SCM check #203 is shown the same way when nothing is decrypted.
+
+### Remediation
+- Copy CLI no longer offers the IoT Security Default Profile as a Log Forwarding profile: it only feeds that service, not a log server.
+
 ## [1.0.6] - 2026-11-03
 
 ### Remediation

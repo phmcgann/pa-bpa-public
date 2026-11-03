@@ -66,7 +66,9 @@ export interface Finding {
   rule_disabled: boolean;
   /** SCM finding for a check a core rule already flagged — listed but not scored twice. */
   duplicate_of?: string[];
-  not_scored_reason?: "duplicate" | "scm_excluded" | "no_log_forwarding_profile" | null;
+  /** SCM findings: why the linked core rule skips this object on purpose (then it isn't scored). */
+  by_design?: string | null;
+  not_scored_reason?: "duplicate" | "by_design" | "scm_excluded" | "no_log_forwarding_profile" | null;
   location?: string | null;
   /** PAN-OS CLI commands that fix this finding, when the fix is mechanical. */
   cli?: FindingCli | null;

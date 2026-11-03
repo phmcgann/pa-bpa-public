@@ -2149,6 +2149,24 @@ def check_wildfire_grayware_not_reported(data: dict, thresholds: dict) -> list[d
                 "Enable Report Grayware Files under Device > Setup > WildFire > General Settings")
 
 
+def decrypting(data: dict) -> bool:
+    """Whether an enabled decryption rule decrypts anything."""
+    return any(r.get("action") in DECRYPT_ACTIONS and r.get("disabled") != "yes"
+               for r in (data.get("decryption") or {}).get("rules") or [])
+
+
+def check_wildfire_decrypted_content_not_forwarded(data: dict, thresholds: dict) -> list[dict]:
+    wf = (data.get("device_settings") or {}).get("wildfire") or {}
+    # Uploads from before the setting was parsed don't have it; with nothing decrypted there's nothing to forward.
+    if "forward_decrypted" not in wf or wf["forward_decrypted"] or not decrypting(data):
+        return []
+    return [{"key": "global",
+             "message": "Decryption is in use, but Allow Forwarding of Decrypted Content is off, so files in "
+                        "decrypted sessions aren't sent to WildFire",
+             "recommendation": "Turn on Allow Forwarding of Decrypted Content under Device > Setup > Content-ID "
+                               "(on a multi-vsys firewall, in each virtual system under Device > Virtual Systems)"}]
+
+
 def check_wildfire_inline_cloud_analysis_disabled(data: dict, thresholds: dict) -> list[dict]:
     lic = _license_active(data, "advanced wildfire")
     if lic == "no":
@@ -3156,6 +3174,7 @@ CHECKS = {
     "log_forwarding_profile_missing_types": check_log_forwarding_profile_missing_types,
     "wildfire_size_limit_below_default": check_wildfire_size_limit_below_default,
     "wildfire_grayware_not_reported": check_wildfire_grayware_not_reported,
+    "wildfire_decrypted_content_not_forwarded": check_wildfire_decrypted_content_not_forwarded,
     "wildfire_inline_cloud_analysis_disabled": check_wildfire_inline_cloud_analysis_disabled,
     "wildfire_realtime_hold_off": check_wildfire_realtime_hold_off,
     "file_blocking_missing_recommended": check_file_blocking_missing_recommended,

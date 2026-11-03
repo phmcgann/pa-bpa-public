@@ -1201,6 +1201,19 @@ RULES: list[RuleDef] = [
                     "Submissions log entry to investigate.",
     ),
     RuleDef(
+        id="wildfire_decrypted_content_not_forwarded",
+        title="Decrypted traffic isn't forwarded to WildFire",
+        category="Decryption",
+        default_severity="WARNING",
+        source_type="pan_docs",
+        source_ref="Palo Alto Networks Advanced WildFire — Forward Decrypted SSL Traffic for Advanced WildFire "
+                   "Analysis: Device > Setup > Content-ID > Allow Forwarding of Decrypted Content "
+                   "(docs.paloaltonetworks.com/advanced-wildfire/administration/configure-advanced-wildfire-analysis/"
+                   "forward-decrypted-ssl-traffic-for-advanced-wildfire-analysis)",
+        description="The firewall decrypts traffic, but Allow Forwarding of Decrypted Content is off (the default), "
+                    "so files in decrypted sessions are never sent to WildFire for a verdict.",
+    ),
+    RuleDef(
         id="wildfire_inline_cloud_analysis_disabled",
         title="WildFire profile has Inline Cloud Analysis off",
         category="Security Profiles",
@@ -2251,6 +2264,7 @@ SCM_MATCHES: dict[str, tuple[int, ...]] = {
     "app_override_rule": (21,),
     "wildfire_size_limit_below_default": (109, 110, 111, 112, 113, 114, 115, 204, 205, 251, 361),
     "wildfire_grayware_not_reported": (117,),
+    "wildfire_decrypted_content_not_forwarded": (203,),
     "wildfire_inline_cloud_analysis_disabled": (363,),
     "wildfire_realtime_hold_off": (347, 414),
     "profile_threat_exceptions": (31, 32, 36, 41),

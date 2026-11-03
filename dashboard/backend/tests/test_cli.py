@@ -287,3 +287,12 @@ def test_new_deny_rules_resolve_their_findings():
         added.append(rule(line.split(" rules ")[1].split(" ")[0], action="deny", sources=[src], destinations=[dst]))
     entry = next(e for e in threat_intel.coverage({"security_rules": added})["lists"] if e["id"] == "panw-known-ip-list")
     assert entry["inbound"] and entry["outbound"]
+
+
+def test_iot_security_default_profile_is_not_offered_for_log_forwarding():
+    data = {"security_rules": [rule("Allow Web")],
+            "log_forwarding_profiles": [{"name": "IoT Security Default Profile"}, {"name": "to-siem"}]}
+    lf = cli.for_finding(f("security_rule_no_log_forwarding", "Allow Web"), cli.Context(data))
+    assert lf["choices"][0]["options"] == ["to-siem"]
+    only_iot = {**data, "log_forwarding_profiles": [{"name": "IoT Security Default Profile"}]}
+    assert "log-setting" not in cmds(only_iot, "quic_not_blocked", "global")[0]
