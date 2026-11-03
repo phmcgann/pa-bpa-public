@@ -343,7 +343,8 @@ RULES: list[RuleDef] = [
                    'profile attached"',
         description="Without a Log Forwarding profile, the rule's traffic and threat logs stay on the "
                     "firewall's local disk and never reach Panorama, syslog, or a SIEM. Checks allow and "
-                    "deny rules alike.",
+                    "deny rules alike. When the firewall has no Log Forwarding profile of its own yet (apart "
+                    "from the IoT Security default), these findings are informational and not scored.",
     ),
     RuleDef(
         id="security_rule_deny_no_logging",
@@ -561,8 +562,8 @@ RULES: list[RuleDef] = [
         source_type="pan_docs",
         source_ref=PAN_BPA_PROFILES + " — the predefined 'strict' File Blocking profile blocks batch, "
                    "DLL, .lnk, .rar/.tar, encrypted-zip, multilevel-encoded, .hta, and PE files",
-        description="Flags a File Blocking profile where every rule's action is alert or continue — "
-                    "the profile exists but nothing is actually blocked.",
+        description="Flags a File Blocking profile where every rule's action is alert or continue, or that "
+                    "has no rules at all — the profile exists but nothing is actually blocked.",
     ),
     RuleDef(
         id="file_blocking_missing_recommended",

@@ -125,6 +125,25 @@ def test_unused_builtin_and_standalone_ha_are_not_applicable():
     assert "[not_applicable] 2 checks" in text and "[core_missed]" not in text
 
 
+def test_scm_results_on_unused_predefined_profiles_are_not_findings():
+    from app.rules import scm_findings
+    from app.rules.builtin_profiles import with_builtins
+    rows = [_row(33, "antivirus_profile", "default"), _row(45, "file_blocking_profile", "strict file blocking"),
+            _row(145, "high_availability", None)]
+    unused = {"security_profiles": {"antivirus": []}, "security_rules": [], "ha_config": {"enabled": False}}
+    assert scm_findings.build(rows, with_builtins(unused)[0], [], {}) == []
+    # Still listed in the coverage view, as not applicable, with no points.
+    cov = scm_coverage.build([], rows, {}, DEFAULT_WEIGHTS, unused)
+    assert {c["check_id"]: c["status"] for c in cov["checks"]} == {33: "not_applicable", 45: "not_applicable",
+                                                                   145: "not_applicable"}
+    assert all(c["points"] == 0 and c["objects"] == 1 for c in cov["checks"])
+    assert next(c for c in cov["checks"] if c["check_id"] == 33)["title"].startswith("Set the protocol decoder")
+    # A predefined profile a rule uses is graded: traffic goes through it.
+    used = {**unused, "security_rules": [{"name": "r", "disabled": "no", "indiv_profiles": {"virus": ["default"]}}]}
+    [f] = scm_findings.build(rows[:1], with_builtins(used)[0], [], {})
+    assert f["finding_key"] == "scm_33:antivirus_profile:default"
+
+
 def test_ha_checks_still_count_when_ha_is_enabled():
     data = {"ha_config": {"enabled": True}}
     cov = scm_coverage.build([_scm(145, "high_availability", "global")], [_row(145, "high_availability", None)],

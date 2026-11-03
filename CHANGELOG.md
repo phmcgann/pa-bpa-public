@@ -3,6 +3,18 @@
 All notable changes to the PA BPA Dashboard. Versions follow [Semantic Versioning](https://semver.org/):
 **major** for changes you must act on when upgrading, **minor** for new features and checks, **patch** for fixes.
 
+## [1.0.6] - 2026-11-03
+
+### Remediation
+- **Copy CLI** now covers blocking Palo Alto's threat IP lists (known malicious, high risk, bulletproof hosting, Tor exit nodes, and the Advanced IP Defense lists when licensed) and QUIC. Each fix adds one deny rule from any zone to any zone: inbound with the list as the source, outbound with it as the destination. The rule logs at session end, has a description, can use one of the firewall's Log Forwarding profiles, and is moved to the top of the rulebase. On Panorama it goes in the device group's pre-rulebase.
+
+### Checks
+- Palo Alto SCM results on PAN-OS's predefined profiles that nothing uses (Antivirus *default*, Anti-Spyware and Vulnerability Protection *default* and *strict*, URL Filtering *default*, File Blocking *basic file blocking* and *strict file blocking*, WildFire Analysis *default*, Decryption *default*) are no longer listed or scored as findings: they can't be edited and no traffic goes through them. The same goes for SCM's HA checks on a firewall without HA, and disabled policy-based forwarding rules. The core rules already skipped all of these; the SCM coverage view still lists them as not applicable. A predefined profile a rule uses is still graded, with a note to clone it.
+- Rules without a Log Forwarding profile are informational and not scored when the firewall has no Log Forwarding profile of its own yet (only the IoT Security default): there's nothing to attach, so the work is setting logging up. With a profile to attach they're scored as before.
+- A WildFire Analysis profile with a rule for file type **any** is no longer flagged for not submitting PDF and Office files: *any* includes them.
+- A File Blocking profile with no rules at all is now flagged: it blocks and logs nothing. Before, only profiles whose rules all alert or continue were. The Copy CLI commands also add the alert rule for every other file type.
+- In the SCM coverage view, Palo Alto SCM check #45 (File Blocking) on a profile that already blocks the listed file types and alerts on the rest is shown as **by design**, with the reason: SCM fails this check even on Palo Alto's own strict File Blocking profile, so it isn't a gap in the core rules.
+
 ## [1.0.5] - 2026-10-18
 
 ### Checks

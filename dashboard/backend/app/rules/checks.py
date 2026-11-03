@@ -352,12 +352,32 @@ def check_security_rule_deny_no_logging(data: dict, thresholds: dict) -> list[di
     return out
 
 
+# PAN-OS creates this Log Forwarding profile for Palo Alto's IoT Security service; it isn't one the firewall's
+# own team set up to send logs anywhere.
+IOT_DEFAULT_LOG_FORWARDING = "iot security default profile"
+
+
 def check_security_rule_no_log_forwarding(data: dict, thresholds: dict) -> list[dict]:
+    profiles = data.get("log_forwarding_profiles")
+    # No profile of the firewall's own to attach yet: the gap is setting logging up, not each rule, so the
+    # per-rule findings are informational and left out of the score. (Older uploads have no profile list.)
+    none_to_attach = profiles is not None and all(p["name"].lower() == IOT_DEFAULT_LOG_FORWARDING for p in profiles)
     out = []
     for rule in data.get("security_rules", []):
         # Rules stored before log-setting was parsed have no key at all — skip
         # rather than read that as "no profile attached".
         if "log_setting" not in rule or rule["log_setting"]:
+            continue
+        if none_to_attach:
+            out.append({
+                "key": rule["name"],
+                "severity": "INFORMATIONAL",
+                "not_scored": "no_log_forwarding_profile",
+                "message": f"Rule '{rule['name']}' has no Log Forwarding profile; the firewall has none set up yet "
+                           "(apart from the IoT Security default), so its logs stay on the firewall",
+                "recommendation": "Create a Log Forwarding profile that sends traffic and threat logs to Panorama, "
+                                  "syslog, or your SIEM, then attach it to every rule",
+            })
             continue
         out.append({
             "key": rule["name"],
@@ -709,26 +729,32 @@ FILE_BLOCKING_RECOMMENDED = ("7z", "bat", "chm", "class", "cpl", "dll", "hlp", "
                              "torrent", "vbe", "wsf")
 
 
+def file_blocking_shortfalls(rules: list[dict]) -> list[str]:
+    """How a File Blocking profile's rules fall short of Palo Alto SCM #45 as it's worded: the common
+    malware file types blocked, and an alert on every other type, in rules for any application in both
+    directions. Empty when the profile meets it."""
+    broad = [r for r in rules if "any" in r["applications"] and r["direction"] == "both"]
+    blocked = {t for r in broad if r["action"] == "block" for t in r["file_types"]}
+    missing = [] if "any" in blocked else [t for t in FILE_BLOCKING_RECOMMENDED if t not in blocked]
+    problems = []
+    if missing:
+        problems.append(f"doesn't block {', '.join(missing)}")
+    if not any(r["action"] in ("alert", "block") and "any" in r["file_types"] for r in broad):
+        problems.append("has no alert rule for all other file types")
+    return problems
+
+
 def check_file_blocking_missing_recommended(data: dict, thresholds: dict) -> list[dict]:
-    """Palo Alto SCM #45: block the common malware file types and alert on every other type, in rules
-    for any application in both directions. A profile that blocks nothing at all is
-    file_blocking_nothing_blocked's finding instead."""
+    """Palo Alto SCM #45. A profile that blocks nothing at all is file_blocking_nothing_blocked's
+    finding instead."""
     out = []
     for profile in _profiles_of(data, "file_blocking"):
         rules = profile.get("settings", {}).get("rules", [])
-        if not rules or not any(r["action"] == "block" for r in rules):
+        if not any(r["action"] == "block" for r in rules):
             continue
-        broad = [r for r in rules if "any" in r["applications"] and r["direction"] == "both"]
-        blocked = {t for r in broad if r["action"] == "block" for t in r["file_types"]}
-        missing = [] if "any" in blocked else [t for t in FILE_BLOCKING_RECOMMENDED if t not in blocked]
-        alert_all = any(r["action"] in ("alert", "block") and "any" in r["file_types"] for r in broad)
-        if not missing and alert_all:
+        problems = file_blocking_shortfalls(rules)
+        if not problems:
             continue
-        problems = []
-        if missing:
-            problems.append(f"doesn't block {', '.join(missing)}")
-        if not alert_all:
-            problems.append("has no alert rule for all other file types")
         out.append({
             "key": profile["name"],
             "scm_object": {"type": "file_blocking_profile", "name": profile["name"]},
@@ -745,11 +771,13 @@ def check_file_blocking_nothing_blocked(data: dict, thresholds: dict) -> list[di
     out = []
     for profile in _profiles_of(data, "file_blocking"):
         rules = profile.get("settings", {}).get("rules", [])
-        if rules and not any(r["action"] == "block" for r in rules):
+        if not any(r["action"] == "block" for r in rules):
             out.append({
                 "key": profile["name"],
-                "message": f"File Blocking profile '{profile['name']}' has no rule set to block — every "
-                           "rule only alerts or continues",
+                "scm_object": {"type": "file_blocking_profile", "name": profile["name"]},
+                "message": f"File Blocking profile '{profile['name']}' " + (
+                    "has no rule set to block — every rule only alerts or continues" if rules
+                    else "has no rules, so it blocks and logs nothing"),
                 "recommendation": "Set at least the high-risk file types (executables, encrypted "
                                    "archives, script files) to Block",
             })
@@ -760,8 +788,11 @@ def check_wildfire_missing_recommended_filetype(data: dict, thresholds: dict) ->
     out = []
     for profile in _profiles_of(data, "wildfire_analysis"):
         rules = profile.get("settings", {}).get("rules", [])
+        submitted = {t for r in rules for t in r.get("file_types", [])}
+        if "any" in submitted:
+            continue  # a rule for file type "any" submits every type
         for file_type in WILDFIRE_RECOMMENDED_FILETYPES:
-            if not any(file_type in r.get("file_types", []) for r in rules):
+            if file_type not in submitted:
                 out.append({
                     "key": f"{profile['name']}:{file_type}",
                     "message": f"WildFire profile '{profile['name']}' doesn't submit '{file_type}' files "

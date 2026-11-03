@@ -13,7 +13,8 @@ For every SCM check that failed on this assessment, why it did or didn't overlap
   not_applicable   every object SCM failed is one the core rules deliberately skip: a PAN-OS predefined
                    profile nothing uses (it can't be edited and affects no traffic), or HA settings on a
                    firewall with HA not enabled (SCM grades the HA defaults even on a standalone firewall),
-                   or a disabled policy-based forwarding rule
+                   or a disabled policy-based forwarding rule. SCM's results on these objects aren't
+                   findings either (scm_findings.not_applicable); they're counted here from the run.
 
 The stored run is kept after SCM stops being reachable, so this stays available. The text export
 lists check numbers, titles, statuses and the names (not values) of the fields SCM failed, plus
@@ -24,9 +25,9 @@ from __future__ import annotations
 
 from ..rules.definitions import RULES_BY_ID
 from . import scm_catalog
-from .builtin_profiles import unused_builtins
-from .checks import ALWAYS_ON, _agent_configs
-from .scm_findings import core_rules_by_scm_check
+from .builtin_profiles import with_builtins
+from .checks import ALWAYS_ON, _agent_configs, _profiles_of, file_blocking_shortfalls
+from .scm_findings import core_rules_by_scm_check, not_applicable as _not_applicable, reported
 
 STATUS_ORDER = ["core_missed", "object_mismatch", "no_rule", "core_off", "by_design", "not_applicable", "covered"]
 
@@ -48,20 +49,15 @@ def _deliberate(data: dict | None) -> dict[int, dict[str | None, str]]:
         if not c.get("internal_host_detection") and not (c.get("internal_gateways") and c.get("external_gateways")):
             out.setdefault(68, {})[portal["name"]] = ("internal host detection only matters when the portal lists both "
                                                       "internal and external gateways")
+    # SCM fails #45 even on Palo Alto's own strict File Blocking profile, so a profile that does what the
+    # check asks is passed on purpose rather than missed.
+    for p in _profiles_of(with_builtins(data)[0], "file_blocking"):
+        rules = p["settings"].get("rules", [])
+        if any(r["action"] == "block" for r in rules) and not file_blocking_shortfalls(rules):
+            out.setdefault(45, {})[p["name"]] = ("blocks all the listed file types and alerts on every other type, for "
+                                                 "any application in both directions, as the check asks; SCM fails "
+                                                 "this check even on Palo Alto's own strict File Blocking profile")
     return out
-
-
-def _not_applicable(data: dict | None):
-    """A predicate over SCM run rows: True for objects the core rules deliberately don't grade."""
-    if data is None:
-        return lambda row: False
-    skip = unused_builtins(data)
-    ha_off = not (data.get("ha_config") or {}).get("enabled")
-    # Disabled PBF rules route nothing; the core rules don't grade them.
-    skip |= {("policy_based_forwarding_rule", r["name"]) for r in (data.get("misc_policy") or {}).get("pbf_rules", [])
-             if r.get("disabled")}
-    return lambda row: (row["object_type"], row.get("object_name")) in skip or (
-        ha_off and row["object_type"] == "high_availability")
 
 
 def _safe_fields(rows: list[dict]) -> list[str]:
@@ -98,6 +94,12 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
     for f in findings:
         if f.get("program") == "scm" and f.get("scm_check_ids"):
             by_check.setdefault(f["scm_check_ids"][0], []).append(f)
+    # SCM results on objects that don't apply aren't findings (scm_findings.build skips them); they're
+    # counted here from the run, so the view still shows them.
+    na_objects: dict[int, set[tuple[str, str | None]]] = {}
+    for r in run_rows:
+        if (data is None or reported(r, data, rule_settings)) and not_applicable(r):
+            na_objects.setdefault(r["check_id"], set()).add((r["object_type"], r.get("object_name") or None))
 
     def enabled(rule_id: str) -> bool:
         rule = RULES_BY_ID[rule_id]
@@ -105,12 +107,15 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
 
     known = scm_catalog.checks_by_id()
     checks = []
-    for cid, all_fs in by_check.items():
+    for cid in sorted(set(by_check) | set(na_objects)):
+        all_fs = by_check.get(cid, [])
         rules = linked.get(cid, [])
         rows = [r for r in run_rows if r["check_id"] == cid and not r["passed"] and not r["excluded"]]
         # Judge the check on the objects the core rules are meant to grade; the rest are listed as n/a.
-        fs = [f for f in all_fs if not not_applicable(_scm_object(f))] or all_fs
-        if all(not_applicable(_scm_object(f)) for f in all_fs):
+        fs = [f for f in all_fs if not not_applicable(_scm_object(f))]
+        na = na_objects.get(cid, set()) | {(o["object_type"], o["object_name"]) for f in all_fs
+                                           if not_applicable(o := _scm_object(f))}
+        if not fs:
             status = "not_applicable"
         elif all(f.get("duplicate_of") for f in fs):
             status = "covered"
@@ -127,12 +132,20 @@ def build(findings: list[dict], run_rows: list[dict], rule_settings: dict, weigh
             status = "core_missed"
         scored = [f for f in fs if not f.get("dismissed") and f.get("not_scored_reason") in (None, "scm_excluded")
                   and not f.get("duplicate_of")]
+        if fs:
+            title, category, severity = fs[0]["title"], fs[0]["category"], fs[0]["severity"]
+        else:
+            check = known.get(cid) or {"name": rows[0].get("check_name") or f"SCM check {cid}",
+                                       "severity": rows[0].get("check_type") or "Informational"}
+            title, category = check["name"], scm_catalog.category_for(rows[0]["object_type"])
+            severity = scm_catalog.SEVERITY_MAP.get(check["severity"], "INFORMATIONAL")
         checks.append({
-            "check_id": cid, "title": fs[0]["title"], "category": fs[0]["category"], "severity": fs[0]["severity"],
+            "check_id": cid, "title": title, "category": category, "severity": severity,
             "status": status,
             # Not in the bundled catalogue: Palo Alto added it after this dashboard's list was taken.
-            "new_check": cid not in known, "objects": len(fs), "object_type": rows[0]["object_type"] if rows else None,
-            "not_applicable_objects": len(all_fs) - len(fs) if status != "not_applicable" else len(all_fs),
+            "new_check": cid not in known, "objects": len(fs) or len(na),
+            "object_type": rows[0]["object_type"] if rows else None,
+            "not_applicable_objects": len(na),
             "points": sum(weights.get(f["severity"], 0) for f in scored),
             "core_rules": [{"id": r, "title": RULES_BY_ID[r].title, "enabled": enabled(r), "findings": fired.get(r, 0)}
                           for r in rules],

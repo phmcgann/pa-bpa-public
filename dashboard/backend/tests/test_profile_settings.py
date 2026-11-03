@@ -82,6 +82,18 @@ def test_wildfire_missing_recommended_filetype(keys):
     assert "wildfire_missing_recommended_filetype:wf_full_coverage:ms-office" not in keys
 
 
+def test_wildfire_file_type_any_submits_everything():
+    from app.rules import checks
+    def wf(*rules):
+        return {"security_profiles": {"wildfire_analysis": [{"name": "wf", "settings": {"rules": list(rules)}}]}}
+    pe_only = {"name": "pe", "file_types": ["pe"]}
+    everything = {"name": "all", "file_types": ["any"]}
+    assert checks.check_wildfire_missing_recommended_filetype(wf(pe_only, everything), {}) == []
+    assert checks.check_wildfire_missing_recommended_filetype(wf(everything), {}) == []
+    assert [f["key"] for f in checks.check_wildfire_missing_recommended_filetype(wf(pe_only), {})] == \
+        ["wf:pdf", "wf:ms-office"]
+
+
 # ── Inline Cloud Analysis (gated on an Advanced Threat Prevention license) ──
 
 ICA_RULE_IDS = {

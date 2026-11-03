@@ -25,7 +25,7 @@ import re
 from typing import Optional
 
 from ..parser import panorama_appliance
-from . import rulebase
+from . import rulebase, threat_intel
 
 _BARE = re.compile(r"^[A-Za-z0-9._/:-]+$")
 
@@ -57,6 +57,7 @@ class Context:
         self.dg = data.get("device_group") or (data.get("system_info") or {}).get("hostname") or "<DEVICE-GROUP>"
         vsys = {r.get("vsys") for r in rules + (data.get("nat_rules") or []) if r.get("vsys")}
         self.multi_vsys = len(vsys) > 1
+        self.vsys_names = sorted(vsys)
         self.rules = {r["name"]: r for r in rules}
         self.profiles = {(ptype, p["name"]): p for ptype, ps in (data.get("security_profiles") or {}).items()
                          for p in ps if "settings" in p}
@@ -150,6 +151,78 @@ def _nat_disable(ctx: Context, key: str) -> Optional[dict]:
         return None
     return {"commands": [f"set {ctx.rulebase(rule, 'nat')} disabled yes"],
             "note": "Disables the NAT rule rather than deleting it."}
+
+
+# ── New deny rules (threat-intelligence IP lists, QUIC) ─────────────────
+#
+# Finding keys: "inbound" / "outbound", or "<list>:<direction>" when one finding covers several lists.
+
+def _new_rulebases(ctx: Context) -> list[str]:
+    """Where a new rule goes: the device group's pre-rulebase on Panorama, otherwise the rulebase of
+    each vsys (one rule per vsys, since each vsys has its own)."""
+    if ctx.panorama:
+        return [f"device-group {q(ctx.dg)} pre-rulebase"]
+    if ctx.multi_vsys:
+        return [f"vsys {q(v)} rulebase" for v in ctx.vsys_names]
+    return ["rulebase"]
+
+
+def _deny_rule(ctx: Context, name: str, match: str, description: str, note: str) -> dict:
+    """A deny rule from any zone to any zone, logged at session end, moved to the top of the rulebase so it's
+    evaluated before every allow rule."""
+    base, n = name, 2
+    while name in ctx.rules:
+        name, n = f"{base}-{n}", n + 1
+    profiles = [p["name"] for p in ctx.data.get("log_forwarding_profiles") or []]
+    log = " log-setting {{log_forwarding}}" if profiles else ""
+    commands = []
+    for rulebase_path in _new_rulebases(ctx):
+        path = f"{rulebase_path} security rules {q(name)}"
+        commands += [f"set {path} from any to any {match} source-user any category any service any action deny "
+                     f'log-end yes{log} description "{description}"',
+                     f"move {path} top"]
+    out: dict = {"commands": commands, "note": note}
+    if profiles:
+        out["choices"] = [_choice("log_forwarding", "Log Forwarding profile", profiles, "<LOG-FORWARDING-PROFILE>")]
+    return out
+
+
+_DENY_RULE_NOTE = ("Adds each rule above every other rule in the rulebase, so it's evaluated before the rules that "
+                   "allow traffic. If a rule has to stay above it (an exception for a partner, say), move the new "
+                   "rule below that one.")
+
+
+def _block_list(list_ids: tuple[str, ...]):
+    """Deny rules for Palo Alto's built-in IP lists: inbound has the list as the Source, outbound as the
+    Destination."""
+    def build(ctx: Context, key: str) -> Optional[dict]:
+        list_id, _, direction = key.rpartition(":")
+        list_id = list_id or list_ids[0]
+        if list_id not in list_ids or direction not in threat_intel.DIRECTIONS:
+            return None
+        label = threat_intel.ALL_LISTS[list_id].replace("Palo Alto Networks - ", "")
+        if direction == "inbound":
+            match = f"source {list_id} destination any application any"
+            description = f"Blocks traffic from {label} (Palo Alto Networks list)"
+        else:
+            match = f"source any destination {list_id} application any"
+            description = f"Blocks traffic to {label} (Palo Alto Networks list)"
+        out = _deny_rule(ctx, f"block-{'in' if direction == 'inbound' else 'out'}-{list_id}", match, description,
+                         _DENY_RULE_NOTE)
+        cov = threat_intel.coverage(ctx.data)
+        disabled = next((e["disabled_rules"] for e in cov["lists"] + cov["aipd_lists"] if e["id"] == list_id), [])
+        if disabled:
+            out["note"] += (f" Rule {', '.join(repr(r) for r in disabled)} already uses {list_id} but is disabled; "
+                            "enabling it may be all that's needed instead.")
+        return out
+    return build
+
+
+def _block_quic(ctx: Context, key: str) -> Optional[dict]:
+    return _deny_rule(ctx, "block-quic", "source any destination any application quic",
+                      "Blocks QUIC so browsers fall back to TLS, which the firewall can inspect",
+                      _DENY_RULE_NOTE + " Blocking UDP ports 80 and 443 as well, as the recommendation suggests, "
+                      "needs service objects for them, so it isn't included.")
 
 
 # ── Device settings (standalone firewalls; Panorama pushes these from templates) ──
@@ -337,8 +410,13 @@ STRICT_FILE_TYPES = "7z bat cab chm class cpl dll exe flash hlp hta jar msi Mult
 
 
 def _file_blocking(ctx, path, p):
-    return {"commands": [f'set {path} rules "block-high-risk-file-types" application any file-type '
-                         f'[ {{{{file_types}}}} ] direction both action block'],
+    commands = [f'set {path} rules "block-high-risk-file-types" application any file-type '
+                f'[ {{{{file_types}}}} ] direction both action block']
+    if not p["settings"].get("rules"):
+        # An empty profile logs nothing either: add the alert rule for every other file type too.
+        commands.append(f'set {path} rules "alert-all-file-types" application any file-type any direction both '
+                        'action alert')
+    return {"commands": commands,
             "choices": [_choice("file_types", "File types to block", [], "<FILE-TYPES>", True, STRICT_FILE_TYPES)],
             "note": "Adds a rule blocking the file types in Palo Alto's strict file blocking profile. Remove any "
                     "the business needs (installers from a software portal, for example) before pasting. A new "
@@ -447,6 +525,15 @@ BUILDERS = {
     "security_rule_shadowed": _shadowed_disable,
     "security_rule_shadowed_block": _shadowed_move,
     "nat_rule_shadowed": _nat_disable,
+    "edl_known_malicious_not_blocked": _block_list(("panw-known-ip-list",)),
+    "edl_high_risk_not_blocked": _block_list(("panw-highrisk-ip-list",)),
+    "edl_bulletproof_not_blocked": _block_list(("panw-bulletproof-ip-list",)),
+    "edl_tor_exit_not_blocked": _block_list(("panw-torexit-ip-list",)),
+    "aipd_c2_not_blocked": _block_list(("panw-aipd-c2-infra-ip-list",)),
+    "aipd_malware_ip_not_blocked": _block_list(("panw-aipd-in-malware-ip-list",)),
+    "aipd_inbound_list_not_blocked": _block_list(("panw-aipd-vpn-ip-list", "panw-aipd-proxies-ip-list",
+                                                  "panw-aipd-scanning-ip-list", "panw-aipd-vuln-svcs-ip-list")),
+    "quic_not_blocked": _block_quic,
     "zone_missing_protection_profile": _zone_protection,
     "unused_objects": _unused_objects,
     "admin_idle_timeout_long": _device("set deviceconfig setting management idle-timeout 10"),

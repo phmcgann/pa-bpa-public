@@ -173,6 +173,9 @@ export function FindingsTable({ findings, view, onViewChange, onDismiss, onUndis
                   {f.not_scored_reason === "scm_excluded" && (
                     <div className="text-[11px] text-fg-muted mt-1">Not scored — Palo Alto SCM findings are excluded from the score in Settings</div>
                   )}
+                  {f.not_scored_reason === "no_log_forwarding_profile" && (
+                    <div className="text-[11px] text-fg-muted mt-1">Not scored — the firewall has no Log Forwarding profile to attach yet</div>
+                  )}
                   {f.rule_disabled && <div className="text-[11px] text-fg-muted mt-1">Excluded from the score — the rule is disabled in the config</div>}
                 </td>
                 <td className="text-[12px] text-fg-2">{f.category}</td>

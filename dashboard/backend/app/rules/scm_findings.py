@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from . import scm_catalog
+from .builtin_profiles import unused_builtins
 from .checks import _license_active as license_active
 from .definitions import RULES
 
@@ -16,6 +17,35 @@ def core_rules_by_scm_check() -> dict[int, list[str]]:
         for cid in r.scm_check_ids:
             out.setdefault(cid, []).append(r.id)
     return out
+
+
+def not_applicable(data: dict | None):
+    """A predicate over SCM run rows (object_type, object_name): True for objects the core rules deliberately
+    don't grade, and whose SCM results aren't findings either:
+    - a PAN-OS predefined profile nothing uses (default, strict, basic/strict file blocking, ...): it can't be
+      edited and no traffic goes through it. One a rule uses is graded, with a note to clone it.
+    - HA settings on a firewall with HA off: SCM grades the HA defaults even on a standalone firewall.
+    - a disabled policy-based forwarding rule: it routes nothing.
+    `data` should include the predefined profiles in use (builtin_profiles.with_builtins)."""
+    if data is None:
+        return lambda row: False
+    skip = unused_builtins(data)
+    ha_off = not (data.get("ha_config") or {}).get("enabled")
+    skip |= {("policy_based_forwarding_rule", r["name"]) for r in (data.get("misc_policy") or {}).get("pbf_rules", [])
+             if r.get("disabled")}
+    return lambda row: (row["object_type"], row.get("object_name")) in skip or (
+        ha_off and row["object_type"] == "high_availability")
+
+
+def reported(row: dict, data: dict, rule_settings: dict) -> bool:
+    """Whether a run row is one this dashboard reports on at all: failed, not excluded in SCM, licensed, and
+    its check not turned off in Settings."""
+    if row["passed"] or row["excluded"]:
+        return False
+    cid = row["check_id"]
+    if cid in scm_catalog.LICENSE_GATED and license_active(data, scm_catalog.LICENSE_GATED[cid]) != "yes":
+        return False
+    return rule_settings.get(scm_rule_id(cid), {}).get("enabled", scm_catalog.enabled_by_default(cid))
 
 
 def build(rows: list[dict], data: dict, core_findings: list[dict], rule_settings: dict) -> list[dict]:
@@ -36,18 +66,16 @@ def build(rows: list[dict], data: dict, core_findings: list[dict], rule_settings
                    for o in core_objects.get(rule_id, []))
     disabled_rule_names = {r["name"] for r in data.get("security_rules", []) if r.get("disabled") == "yes"}
 
+    skip = not_applicable(data)
     findings = []
     seen = set()
     for row in rows:
-        if row["passed"] or row["excluded"]:
+        # Objects that don't apply are listed in the coverage view, not as findings.
+        if not reported(row, data, rule_settings) or skip(row):
             continue
         cid = row["check_id"]
-        if cid in scm_catalog.LICENSE_GATED and license_active(data, scm_catalog.LICENSE_GATED[cid]) != "yes":
-            continue
         rule_id = scm_rule_id(cid)
         setting = rule_settings.get(rule_id, {})
-        if not setting.get("enabled", scm_catalog.enabled_by_default(cid)):
-            continue
         check = catalog.get(cid) or {
             "id": cid, "name": row.get("check_name") or f"SCM check {cid}",
             "severity": row.get("check_type") or "Informational",

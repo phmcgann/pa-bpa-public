@@ -183,8 +183,9 @@ def compute_findings(assessment: Assessment, session: Session) -> tuple[list[dic
 
     weights, thresholds = scoring_weights_and_thresholds(get_scoring_settings(session))
     for f in findings:
-        # Why a finding doesn't count toward the score, beyond dismissal / a disabled rule.
-        f["not_scored_reason"] = None
+        # Why a finding doesn't count toward the score, beyond dismissal / a disabled rule. A core check can
+        # set its own (see engine.run_rules).
+        f["not_scored_reason"] = f.get("not_scored_reason")
         if f.get("program") == "scm":
             if f.get("duplicate_of"):
                 f["not_scored_reason"] = "duplicate"

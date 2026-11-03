@@ -241,3 +241,49 @@ def test_standalone_firewall_is_unchanged():
     data = {"security_rules": [rule("Allow Web")]}
     assert cli.unavailable_reason(data) is None
     assert _annotated(data)["commands"] == ['set rulebase security rules "Allow Web" log-end yes']
+
+
+def test_threat_list_findings_add_deny_rules_at_the_top():
+    data = {"security_rules": [rule("Allow Web")], "log_forwarding_profiles": [{"name": "to-siem"}]}
+    out = cli.for_finding(f("edl_known_malicious_not_blocked", "inbound"), cli.Context(data))
+    assert out["commands"] == [
+        "set rulebase security rules block-in-panw-known-ip-list from any to any source panw-known-ip-list "
+        "destination any application any source-user any category any service any action deny log-end yes "
+        'log-setting {{log_forwarding}} description "Blocks traffic from Known malicious IP addresses '
+        '(Palo Alto Networks list)"',
+        "move rulebase security rules block-in-panw-known-ip-list top"]
+    assert out["choices"][0]["options"] == ["to-siem"]
+    outbound = cmds(data, "edl_tor_exit_not_blocked", "outbound")
+    assert "source any destination panw-torexit-ip-list" in outbound[0]
+    assert outbound[1] == "move rulebase security rules block-out-panw-torexit-ip-list top"
+    # Without Log Forwarding profiles there's nothing to choose, so no slot.
+    plain = cmds({"security_rules": [rule("Allow Web")]}, "quic_not_blocked", "global")
+    assert "application quic" in plain[0] and "log-setting" not in plain[0]
+
+
+def test_new_deny_rules_follow_context_and_avoid_name_clashes():
+    multi = {"security_rules": [rule("a", vsys="vsys1"), rule("b", vsys="vsys2")]}
+    out = cmds(multi, "edl_high_risk_not_blocked", "outbound")
+    assert [c.split(" security rules ")[0] for c in out] == \
+        ["set vsys vsys1 rulebase", "move vsys vsys1 rulebase", "set vsys vsys2 rulebase", "move vsys vsys2 rulebase"]
+    pano = {"device_group": "Branch Offices", "security_rules": [rule("r", rule_scope="device_group_pre")]}
+    assert cmds(pano, "quic_not_blocked", "global")[1] == \
+        'move device-group "Branch Offices" pre-rulebase security rules block-quic top'
+    clash = {"security_rules": [rule("block-quic", action="deny", disabled="yes")]}
+    assert "rules block-quic-2 " in cmds(clash, "quic_not_blocked", "global")[0]
+    # Advanced IP Defense: one finding covers several lists, keyed "<list>:<direction>".
+    aipd = cmds(multi | {"security_rules": [rule("a")]}, "aipd_inbound_list_not_blocked", "panw-aipd-vpn-ip-list:inbound")
+    assert "source panw-aipd-vpn-ip-list destination any" in aipd[0]
+
+
+def test_new_deny_rules_resolve_their_findings():
+    from app.rules import threat_intel
+    data = {"security_rules": [rule("Allow Web")]}
+    added = []
+    for rid, key in (("edl_known_malicious_not_blocked", "inbound"), ("edl_known_malicious_not_blocked", "outbound")):
+        line = cmds(data, rid, key)[0]
+        src = line.split(" source ")[1].split(" ")[0]
+        dst = line.split(" destination ")[1].split(" ")[0]
+        added.append(rule(line.split(" rules ")[1].split(" ")[0], action="deny", sources=[src], destinations=[dst]))
+    entry = next(e for e in threat_intel.coverage({"security_rules": added})["lists"] if e["id"] == "panw-known-ip-list")
+    assert entry["inbound"] and entry["outbound"]

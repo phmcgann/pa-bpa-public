@@ -84,6 +84,8 @@ def run_rules(data: dict, rule_settings: dict[str, dict]) -> list[dict]:
                 # The object this finding is about, in SCM's terms, when the check knows it —
                 # lets an SCM result count as a duplicate only for that same object.
                 "scm_object": item.get("scm_object"),
+                # Set when the check itself leaves the finding out of the score (it's still listed).
+                "not_scored_reason": item.get("not_scored"),
             })
     return findings
 

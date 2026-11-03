@@ -1,8 +1,8 @@
 """Gaps from an Oct 16 2026 SCM run: checks #58/#373, #103, #228 and #45 that core rules missed, and
 #414, #108 and #107, new from Palo Alto. A small synthetic config (no client data)."""
 from app import parser
-from app.rules import cli, scm_catalog, scm_findings
-from app.rules.engine import run_rules
+from app.rules import cli, scm_catalog, scm_coverage, scm_findings
+from app.rules.engine import DEFAULT_WEIGHTS, run_rules
 
 CONFIG = """<config version="11.1.0">
   <mgt-config><password-complexity><enabled>yes</enabled><minimum-length>12</minimum-length>
@@ -29,6 +29,7 @@ CONFIG = """<config version="11.1.0">
               <direction>both</direction><action>alert</action></entry></rules></entry>
           <entry name="alert-only"><rules><entry name="a"><application><member>any</member></application>
             <file-type><member>any</member></file-type><direction>both</direction><action>alert</action></entry></rules></entry>
+          <entry name="empty"/>
         </file-blocking>
       </profiles>
       <rulebase/>
@@ -77,6 +78,47 @@ def test_file_blocking_recommended_types():
     cmds = cli.for_finding(f, cli.Context(data))["commands"]
     assert cmds[0].endswith("direction both action block") and "torrent" in cmds[0]
     assert cmds[1].endswith("file-type any direction both action alert")
+
+
+def test_file_blocking_profile_with_no_rules_blocks_nothing():
+    data, fs = _findings()
+    f = fs["file_blocking_nothing_blocked:empty"]
+    assert "has no rules" in f["message"]
+    assert f["scm_object"] == {"type": "file_blocking_profile", "name": "empty"}
+    assert "file_blocking_missing_recommended:empty" not in fs
+    # It logs nothing either, so the fix adds the alert rule too.
+    cmds = cli.for_finding(f, cli.Context(data))["commands"]
+    assert len(cmds) == 2 and cmds[1].endswith("file-type any direction both action alert")
+    # A profile with rules gets only the block rule.
+    assert len(cli.for_finding(fs["file_blocking_nothing_blocked:alert-only"], cli.Context(data))["commands"]) == 1
+
+
+def _coverage_45(failed: list[str], data=None):
+    data = data or parser.parse_config(CONFIG.encode())
+    rows = [{"check_id": 45, "object_type": "file_blocking_profile", "object_name": n, "passed": False,
+             "excluded": False, "failed_fields": {"rules": []}} for n in failed]
+    core = run_rules(data, {})
+    scm = scm_findings.build(rows, data, core, {})
+    [check] = scm_coverage.build(core + scm, rows, {}, DEFAULT_WEIGHTS, data)["checks"]
+    return check
+
+
+def test_scm_45_on_a_profile_that_does_what_it_asks_is_by_design():
+    # SCM fails #45 even on Palo Alto's own strict profile; a profile meeting its wording isn't a miss.
+    check = _coverage_45(["strict-like", "empty"])  # "empty" is flagged by file_blocking_nothing_blocked
+    assert check["status"] == "by_design" and "strict File Blocking profile" in check["reason"]
+    assert _coverage_45(["empty"])["status"] == "covered"
+    assert _coverage_45(["some-blocking"])["status"] == "covered"
+
+
+def test_scm_45_on_a_predefined_profile_in_use_is_by_design():
+    data = {"security_profiles": {"file_blocking": []}, "profile_groups": [],
+            "security_rules": [{"name": "r", "disabled": "no", "indiv_profiles": {"file-blocking": ["strict file blocking"]}}]}
+    rows = [{"check_id": 45, "object_type": "file_blocking_profile", "object_name": "strict file blocking",
+             "passed": False, "excluded": False, "failed_fields": {"rules": []}}]
+    findings = scm_findings.build(rows, data, [], {})
+    [check] = scm_coverage.build(findings, rows, {}, DEFAULT_WEIGHTS, data)["checks"]
+    assert check["status"] == "by_design"
 
 
 def test_x_forwarded_for_settings():
